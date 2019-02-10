@@ -1,3 +1,6 @@
+# Project specs
+test_folder
+
 # Byte
 -compiled / optimized / DLL files
 __pycache__/
@@ -7,6 +10,8 @@ __pycache__/
 
 # C extensions
 *.so
+*.o
+*.gch
 
 # Distribution / packaging
 .Python
@@ -115,6 +120,3 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
-
-# C
-*.gch

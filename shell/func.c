@@ -5,6 +5,10 @@
 #include "func.h"
 #include "common.h"
 
+
+static void append(char *, char);
+static void copy(char *parsed_input[], char *buffer, int index);
+
 void append(char *buffer, char i){
   char _i[2]= " \0";
   _i[0]=i;

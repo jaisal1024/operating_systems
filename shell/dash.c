@@ -7,7 +7,7 @@
 
 int main(int argc, char const *argv[]) {
   int exit = 0;
-  char* wd;
+  char wd[1000];
   while (!exit) {
     //declerations
     char _input[MAX_INPUT_SIZE];
@@ -20,6 +20,7 @@ int main(int argc, char const *argv[]) {
     //VLOG(DEBUG, "size of %lu", length_of(*parsed_input[COMMAND_INDEX]));
     VLOG(DEBUG, "%i", strncmp("WD", "WD",2)==0); //this is because of the weird 1st round error
     //get input
+    printf(">>");
     fgets(_input, MAX_INPUT_SIZE, stdin);
     //parse input and check output
     int successful_inputs = parse_input(_input, parsed_input);
@@ -32,8 +33,8 @@ int main(int argc, char const *argv[]) {
           //exit(0)
           exit = 1;
         } else if(strncmp(parsed_input[COMMAND_INDEX], "pwd", 3)==0){
-          if (!wd)
-            getwd(wd);
+          //if (!wd)
+          getwd(wd);
           VLOG(INFO, "%s", wd);
         } else if (strncmp(parsed_input[COMMAND_INDEX], "cd", 2)==0) {
           if (successful_inputs < 2){

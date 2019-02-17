@@ -8,9 +8,6 @@
 
 #define length_of(str) sizeof(str)/sizeof(str[0])
 
-void append(char*, char);
-void copy(char* [], char*, int);
-void strip(char*, char*, char* []);
-int parse_input(char [], char* []);
+extern int parse_input(char [], char* []);
 
 #endif // FUNC_H_

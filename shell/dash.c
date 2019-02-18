@@ -1,66 +1,117 @@
+#include "common.h"
+#include "func.h"
+#include <ctype.h>
+#include <errno.h>
+#include <libgen.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include "func.h"
-#include "common.h"
 
-int main(int argc, char const *argv[]) {
-  int exit = 0;
-  char wd[1000];
+int main(int argc, char **argv) {
+  // declare variables
+  int exit = 0, hist_capacity = 0, path_capacity = 0;
+  int j, status, i;
+  char wd[200];
+  // allocate history data structure
+  char **history = malloc(MAX_HIST_SIZE * sizeof(char *));
+  for (j = 0; j < MAX_HIST_SIZE; j++) {
+    history[j] = malloc(MAX_INPUT_SIZE * sizeof(char));
+  }
+  status = load_history(history, &hist_capacity);
+  if (status == -1) {
+    printf("Load History Failed\n");
+  }
+  // declare PATH data structure
+  path path_[MAX_NUM_OF_PATHS];
+  strcpy(path_[PATH_INDEX].identifier, "PATH");
+  strcpy(path_[PATH_INDEX].body, "");
+  path_capacity++;
+
   while (!exit) {
-    //declerations
+    // declerations
     char _input[MAX_INPUT_SIZE];
-    char * parsed_input[ARRAY_OF_CHAR_SIZE];
-    // char *test = (char *) malloc(MAX_INPUT_SIZE * sizeof(char));
-    int i;
-    for (i=0; i<ARRAY_OF_CHAR_SIZE; i++){
-      parsed_input[i] = (char *)malloc(MAX_INPUT_SIZE*sizeof(char));
-    }
-    //VLOG(DEBUG, "size of %lu", length_of(*parsed_input[COMMAND_INDEX]));
-    VLOG(DEBUG, "%i", strncmp("WD", "WD",2)==0); //this is because of the weird 1st round error
-    //get input
-    printf(">>");
+    argc = 0;
+
+    // get input
+    printf(">> ");
     fgets(_input, MAX_INPUT_SIZE, stdin);
-    //parse input and check output
-    int successful_inputs = parse_input(_input, parsed_input);
-    if (successful_inputs) {
-        VLOG(DEBUG, "D1: %s", parsed_input[IDENTIFIER_INDEX]);
-        VLOG(DEBUG, "D2: %s", parsed_input[COMMAND_INDEX]);
-        // VLOG(DEBUG, "D2: %i", strncmp(parsed_input[i], "pwd", 3));
-        if (strncmp(parsed_input[COMMAND_INDEX], "exit", 4)==0){
-          VLOG(INFO, "Dash: bye");
-          //exit(0)
-          exit = 1;
-        } else if(strncmp(parsed_input[COMMAND_INDEX], "pwd", 3)==0){
-          //if (!wd)
+
+    // parse input and check output
+    parse_input(_input, argv, &argc);
+    if (argc > 0) {
+      if (argv[COMMAND_INDEX][0] - '!' == 0) {
+        if (isdigit(argv[COMMAND_INDEX][1])) {
+          char *buf = malloc(2 * sizeof(char));
+          strncpy(buf, argv[COMMAND_INDEX] + 1, 2);
+          int ind = atoi(buf) - 1;
+          if (ind <= hist_capacity) {
+            argc = 0;
+            memset(argv, 0, MAX_TOKEN_SIZE * sizeof(&argv));
+            strcpy(_input, history[ind]);
+            parse_input(_input, argv, &argc);
+          }
+        }
+      }
+      if (strncmp(argv[COMMAND_INDEX], "cd", 2) == 0) {
+        if (argc < 2) {
           getwd(wd);
-          VLOG(INFO, "%s", wd);
-        } else if (strncmp(parsed_input[COMMAND_INDEX], "cd", 2)==0) {
-          if (successful_inputs < 2){
-            VLOG(WARNING, "please provide a path ");
+          char *cwd = dirname(wd);
+          if (access(cwd, 1) == 0) {
+            if (chdir(cwd) != -1)
+              status = update_history(history, _input, &hist_capacity);
+            else
+              printf("%s\n", strerror(errno));
           } else {
-            getwd(wd);
-            char * cwd = strcat(wd, "/\0");
-            cwd = strcat(cwd, parsed_input[IDENTIFIER_INDEX]);
-            if (access(cwd, 1)==0) {
-              if (chdir(cwd) == -1) {
-                VLOG(WARNING, "access denied");
-              }
-            } else {
-              VLOG(WARNING, "change directory failed");
-            }
+            printf("%s\n", strerror(errno));
           }
         } else {
-          VLOG(WARNING, "command not found");
+          getwd(wd);
+          char *cwd = strcat(wd, "/\0");
+          cwd = strcat(cwd, argv[IDENTIFIER_INDEX]);
+          if (access(cwd, 1) == 0) {
+            if (chdir(cwd) != -1)
+              status = update_history(history, _input, &hist_capacity);
+            else
+              printf("%s\n", strerror(errno));
+          } else {
+            printf("%s\n", strerror(errno));
+          }
         }
+      } else if (strncmp(argv[COMMAND_INDEX], "pwd", 3) == 0) {
+        getwd(wd);
+        printf("%s\n", wd);
+        status = update_history(history, _input, &hist_capacity);
+      } else if (strncmp(argv[COMMAND_INDEX], "exit", 4) == 0) {
+        VLOG(INFO, "Dash: bye");
+        status = update_history(history, _input, &hist_capacity);
+        exit = 1;
+      } else if (strncmp(argv[COMMAND_INDEX], "export", 6) == 0 && argc <= 2) {
+        if (argc < 2) {
+          print_path(path_, path_capacity);
+        } else {
+          status = update_path(path_, argv, &path_capacity);
+        }
+        status = update_history(history, _input, &hist_capacity);
+      } else if (strncmp(argv[COMMAND_INDEX], "history", 7) == 0) {
+        status = update_history(history, _input, &hist_capacity);
+        for (i = 0; i < hist_capacity; i++) {
+          printf("\t%i %s\n", i + 1, history[i]);
+        }
+      } else {
+        status = external_command(path_[PATH_INDEX], argv, argc, path_capacity);
+        if (status == -1)
+          printf("command not found\n");
+      }
     } else {
-      VLOG(INFO, "command not found");
-      // printf("\n");
-    }
-    for (i=0; i<ARRAY_OF_CHAR_SIZE; i++){
-      free(parsed_input[i]);
+      printf("command not found\n");
     }
   }
+
+  for (j = 0; j < MAX_HIST_SIZE; j++) {
+    free(history[j]);
+  }
+  free(history);
+
   return 0;
 }

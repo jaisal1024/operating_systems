@@ -2,9 +2,11 @@ CC=gcc
 src = $(wildcard *.c)
 obj = $(src:.c=.o)
 
-a.out: $(obj)
+dash: $(obj)
 	$(CC) -o $@ $^
 
 .PHONY: clean
 clean:
-	rm -f $(obj) a.out
+	rm -f $(obj) dash
+	rm *.gch
+	rm -f .history

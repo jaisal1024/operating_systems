@@ -25,6 +25,8 @@ void parse_input(char _input[], char **argv, int *argc) {
   // declerations
   const char *delim = " ";
   char *token;
+  strip(_input, *argc, argv);
+  char *input_cpy = strdup(_input);
 
   /* -------------parsed_input----------------------
      [0] = command
@@ -33,16 +35,15 @@ void parse_input(char _input[], char **argv, int *argc) {
   // strip input
   // strip(_input, parsed_input);
   // loop over input
-  while ((token = strsep(&_input, delim)) != NULL) {
+  while ((token = strsep(&input_cpy, delim)) != NULL) {
     if (*token != '\0') {
       if (token[strlen(token) - 1] < 32) {
         token[strlen(token) - 1] = '\0';
       }
       argv[(*argc)++] = token;
-      // VLOG(DEBUG, "T:%s", token);
-      // VLOG(DEBUG, "C:%i", *argc);
     }
   }
+  free(input_cpy);
 }
 
 int load_history(char **history, int *hist_capacity) {
@@ -61,27 +62,29 @@ int load_history(char **history, int *hist_capacity) {
 }
 
 int update_history(char **history, char _input[], int *hist_capacity) {
-  FILE *fp;
   if ((*hist_capacity) >= MAX_HIST_SIZE - 1) {
+    // shift memory to delete the first element of history
     memmove(history, history + 1, (MAX_HIST_SIZE - 1) * sizeof(history[0]));
     history[MAX_HIST_SIZE - 1] = malloc(sizeof(char *));
     snprintf(history[MAX_HIST_SIZE - 1], MAX_INPUT_SIZE * sizeof(char), "%s",
              _input);
-    fp = fopen(".history", "w");
-    if (fp == NULL)
-      return -1;
-    int j;
-    for (j = 0; j < MAX_HIST_SIZE; j++) {
-      fprintf(fp, "%s\n", history[j]);
-    }
+    // FOR SYNCHRONOUS WRITING TO FILE
+    // return write_to_history(history, MAX_HIST_SIZE) > 0);
+    return 0;
+
   } else {
-    strcpy(history[(*hist_capacity)++], _input);
-    fp = fopen(".history", "a");
-    if (fp == NULL)
-      return -1;
-    fprintf(fp, "%s\n", _input);
+    strncpy(history[(*hist_capacity)++], _input, MAX_INPUT_SIZE);
+    // FOR SYNCHRONOUS WRITING TO HIST FILE DURING PROGRAM; CURRENTLY DISABLED
+    //   FILE *fp;
+    //   fp = fopen(".history", "a");
+    //   fflush(fp);
+    //   if (fp == NULL)
+    //     return -1;
+    //   int status = fprintf(fp, "%s\n", _input);
+    // }
+    // fclose(fp);
+    return 0;
   }
-  fclose(fp);
   return 0;
 }
 
@@ -105,16 +108,15 @@ int update_path(path *path_, char **argv, int *path_capacity) {
         strcpy(temp_path_.identifier, token);
       else
         strcpy(temp_path_.body, token);
-      VLOG(DEBUG, "T:%s", token);
     }
   }
   int temp_len = strlen(temp_path_.identifier);
-  for (i = 0; i < (*path_capacity); i++) {
+  for (i = 0; i < (*path_capacity) && !exists; i++) {
     if (strlen(path_[i].identifier) == temp_len) {
       if (strncmp(temp_path_.identifier, path_[i].identifier, temp_len) == 0) {
         exists = 1;
         strcpy(path_[i].body, temp_path_.body);
-        // VLOG(DEBUG, "UP:%s=%s", path_[i].identifier, path_[i].body);
+        VLOG(DEBUG, "UP:%s=%s", path_[i].identifier, path_[i].body);
         break;
       }
     }
@@ -151,13 +153,18 @@ int external_command(path path_, char **argv, int argc, int path_capacity) {
   for (i = 0; i < path_list_ind; i++) {
     cwd = strcat(path_list[i], "/\0");
     cwd = strcat(cwd, argv[COMMAND_INDEX]);
+    VLOG(DEBUG, "PATH CHECK %s", cwd);
     if (access(cwd, 1) == 0) {
       found = 1;
       printf("%s is an external command (%s)\n", argv[COMMAND_INDEX], cwd);
       break;
     }
-    memset(cwd, 0, strlen(cwd) * sizeof(char));
   }
+
+  // clear buffers for next iteration
+  memset(cwd, 0, MAX_PATH_SIZE * sizeof(char));
+  memset(path_list, 0,
+         sizeof(path_list[0][0]) * MAX_NUM_OF_PATHS_2 * MAX_PATH_SIZE);
 
   if (found) {
     if (argc > 1) {
@@ -173,4 +180,31 @@ int external_command(path path_, char **argv, int argc, int path_capacity) {
   if (found)
     return 0;
   return -1;
+}
+
+int write_to_history(char **history, int hist_capacity) {
+  // write to file upon exit, the data structure history
+  int status = 0;
+  FILE *fp;
+  fp = fopen(".history", "w");
+  fflush(fp);
+  if (fp == NULL)
+    return -1;
+  int j;
+  for (j = 0; j < hist_capacity; j++) {
+    // if any ret value is negative, fprintf failed and the func returns -1
+    int ret = fprintf(fp, "%s\n", history[j]);
+    if (ret < 0)
+      status = -1;
+  }
+  return status;
+}
+
+void debug_array(char **arr, int size, char *id) {
+  int i;
+  VLOG(DEBUG, "%s START", id);
+  for (i = 0; i < size; i++) {
+    VLOG(DEBUG, "%s", arr[i]);
+  }
+  VLOG(DEBUG, "%s END", id);
 }

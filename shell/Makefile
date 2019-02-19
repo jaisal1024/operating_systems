@@ -9,4 +9,5 @@ dash: $(obj)
 clean:
 	rm -f $(obj) dash
 	rm -f .history
-	rm *.gch
+	touch .history
+	rm -f *.gch

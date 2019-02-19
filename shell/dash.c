@@ -12,7 +12,7 @@ int main(int argc, char **argv) {
   // declare variables
   int exit = 0, hist_capacity = 0, path_capacity = 0;
   int j, status, i;
-  char wd[MAX_PATH_SIZE];
+  char *wd = malloc((sizeof(char) * MAX_PATH_SIZE));
   // allocate history data structure
   char **history = malloc(MAX_HIST_SIZE * sizeof(char *));
   for (j = 0; j < MAX_HIST_SIZE; j++) {
@@ -55,7 +55,7 @@ int main(int argc, char **argv) {
       }
       if (strncmp(argv[COMMAND_INDEX], "cd", 2) == 0) {
         if (argc < 2) {
-          getwd(wd);
+          getcwd(wd, MAX_PATH_SIZE);
           char *cwd = dirname(wd);
           if (access(cwd, 1) == 0) {
             if (chdir(cwd) != -1)
@@ -66,7 +66,7 @@ int main(int argc, char **argv) {
             printf("%s\n", strerror(errno));
           }
         } else {
-          getwd(wd);
+          getcwd(wd, MAX_PATH_SIZE);
           char *cwd = strcat(wd, "/\0");
           cwd = strcat(cwd, argv[IDENTIFIER_INDEX]);
           if (access(cwd, 1) == 0) {
@@ -79,7 +79,7 @@ int main(int argc, char **argv) {
           }
         }
       } else if (strncmp(argv[COMMAND_INDEX], "pwd", 3) == 0) {
-        getwd(wd);
+        getcwd(wd, MAX_PATH_SIZE);
         printf("%s\n", wd);
         status = update_history(history, _input, &hist_capacity);
       } else if (strncmp(argv[COMMAND_INDEX], "exit", 4) == 0) {
@@ -115,6 +115,7 @@ int main(int argc, char **argv) {
     free(history[j]);
   }
   free(history);
+  free(wd);
 
   return 0;
 }

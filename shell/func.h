@@ -19,6 +19,7 @@ typedef struct {
   char body[MAX_PATH_SIZE];
 } path;
 
+extern void set_dir();
 extern void parse_input(char *, char **, int *);
 extern int load_history(char **, int *);
 extern int update_history(char **, char[], int *);

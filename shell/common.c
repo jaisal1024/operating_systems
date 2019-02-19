@@ -3,4 +3,4 @@
 // int verbose = ALL:
 // int warning
 // int warning = NONE;
-int verbose = DEBUG;
+int verbose = NONE;

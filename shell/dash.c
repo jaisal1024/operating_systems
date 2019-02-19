@@ -13,8 +13,10 @@ int main(int argc, char **argv) {
   int exit_ = 0, hist_capacity = 0, path_capacity = 0;
   int j, status, i;
   // get and store current directory
-  char *wd = malloc((sizeof(char) * MAX_PATH_SIZE));
-  wd = getcwd(wd, MAX_PATH_SIZE);
+  char *cur_dir = malloc((sizeof(char) * MAX_PATH_SIZE));
+  cur_dir = getcwd(cur_dir, MAX_PATH_SIZE);
+  const char *home_dir = strdup(cur_dir);
+  set_dir(home_dir);
   // allocate history data structure
   char **history = malloc(MAX_HIST_SIZE * sizeof(char *));
   for (j = 0; j < MAX_HIST_SIZE; j++) {
@@ -66,34 +68,48 @@ int main(int argc, char **argv) {
       }
 
       if (strncmp(argv[COMMAND_INDEX], "cd", 2) == 0) {
-        // if just "cd" is passed, access parent directory
+        // if just "cd" is passed, go to home directory
         if (argc < 2) {
-          // update wd to parent directory
-          char *cwd = strcat(wd, "/\0");
-          cwd = dirname(wd);
-          if (access(cwd, 1) == 0) {
-            if (chdir(cwd) == 0)
-              getcwd(wd, MAX_PATH_SIZE);
+          // update cur_dir to home directory
+          VLOG(DEBUG, "CD: %s", home_dir);
+          if (access(home_dir, 1) == 0) {
+            if (chdir(home_dir) == 0)
+              getcwd(cur_dir, MAX_PATH_SIZE);
             else
               printf("%s\n", strerror(errno));
           } else {
             printf("%s\n", strerror(errno));
           }
         } else {
-          char *cwd = strcat(wd, "/\0");
-          cwd = strcat(cwd, argv[IDENTIFIER_INDEX]);
-          if (access(cwd, 1) == 0) {
-            if (chdir(cwd) == 0) // if successful, reset the current directory
-              getcwd(wd, MAX_PATH_SIZE);
-            else
+          if (strncmp(argv[IDENTIFIER_INDEX], "..", 2) == 0) {
+            // update cur_dir to parent directory
+            char *copy_dir = strcat(cur_dir, "/\0");
+            copy_dir = dirname(copy_dir);
+            if (access(copy_dir, 1) == 0) {
+              if (chdir(copy_dir) == 0)
+                getcwd(cur_dir, MAX_PATH_SIZE);
+              else
+                printf("%s\n", strerror(errno));
+            } else {
               printf("%s\n", strerror(errno));
+            }
           } else {
-            printf("%s\n", strerror(errno));
+            char *copy_dir = strcat(cur_dir, "/\0");
+            copy_dir = strcat(copy_dir, argv[IDENTIFIER_INDEX]);
+            if (access(copy_dir, 1) == 0) {
+              if (chdir(copy_dir) ==
+                  0) // if successful, reset the current directory
+                getcwd(cur_dir, MAX_PATH_SIZE);
+              else
+                printf("%s\n", strerror(errno));
+            } else {
+              printf("%s\n", strerror(errno));
+            }
           }
         }
 
       } else if (strncmp(argv[COMMAND_INDEX], "pwd", 3) == 0) {
-        printf("%s\n", wd);
+        printf("%s\n", cur_dir);
 
       } else if (strncmp(argv[COMMAND_INDEX], "exit", 4) == 0) {
         // free allocated memory and set exit to true
@@ -102,7 +118,9 @@ int main(int argc, char **argv) {
           free(history[j]);
         }
         free(history);
-        free(wd);
+        free(cur_dir);
+        VLOG(DEBUG, "HERE");
+        free((char *)home_dir);
         exit_ = 1;
         exit(EXIT_SUCCESS);
 

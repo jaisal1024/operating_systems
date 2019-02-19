@@ -119,7 +119,6 @@ int main(int argc, char **argv) {
         }
         free(history);
         free(cur_dir);
-        VLOG(DEBUG, "HERE");
         free((char *)home_dir);
         exit_ = 1;
         exit(EXIT_SUCCESS);

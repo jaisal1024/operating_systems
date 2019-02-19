@@ -62,7 +62,7 @@ int load_history(char **history, int *hist_capacity) {
 
 int update_history(char **history, char _input[], int *hist_capacity) {
   FILE *fp;
-  if ((*hist_capacity) >= MAX_HIST_SIZE - 1) { // need to shift history array
+  if ((*hist_capacity) >= MAX_HIST_SIZE - 1) {
     memmove(history, history + 1, (MAX_HIST_SIZE - 1) * sizeof(history[0]));
     history[MAX_HIST_SIZE - 1] = malloc(sizeof(char *));
     snprintf(history[MAX_HIST_SIZE - 1], MAX_INPUT_SIZE * sizeof(char), "%s",

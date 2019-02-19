@@ -25,7 +25,7 @@ int main(int argc, char **argv) {
   // load history
   status = load_history(history, &hist_capacity);
   if (status == -1) { // if .history file does not exist notify user
-    printf("Load History Failed\n");
+    printf("Load History: Empty\n");
   }
   // declare PATH data structure
   path path_[MAX_NUM_OF_PATHS];

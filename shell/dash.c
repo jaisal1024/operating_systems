@@ -12,7 +12,7 @@ int main(int argc, char **argv) {
   // declare variables
   int exit = 0, hist_capacity = 0, path_capacity = 0;
   int j, status, i;
-  char wd[200];
+  char wd[MAX_PATH_SIZE];
   // allocate history data structure
   char **history = malloc(MAX_HIST_SIZE * sizeof(char *));
   for (j = 0; j < MAX_HIST_SIZE; j++) {
@@ -102,6 +102,9 @@ int main(int argc, char **argv) {
         status = external_command(path_[PATH_INDEX], argv, argc, path_capacity);
         if (status == -1)
           printf("command not found\n");
+        else {
+          status = update_history(history, _input, &hist_capacity);
+        }
       }
     } else {
       printf("command not found\n");

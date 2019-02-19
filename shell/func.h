@@ -2,7 +2,7 @@
 #define FUNC_H_
 
 #define MAX_PATH_ID_SIZE 50
-#define MAX_PATH_SIZE 200
+#define MAX_PATH_SIZE 500
 #define MAX_NUM_OF_PATHS 10
 #define MAX_NUM_OF_PATHS_2 25
 #define MAX_INPUT_SIZE 100

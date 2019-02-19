@@ -8,5 +8,5 @@ dash: $(obj)
 .PHONY: clean
 clean:
 	rm -f $(obj) dash
-	rm *.gch
 	rm -f .history
+	rm *.gch

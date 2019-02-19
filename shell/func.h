@@ -7,7 +7,7 @@
 #define MAX_NUM_OF_PATHS_2 25
 #define MAX_INPUT_SIZE 100
 #define MAX_TOKEN_SIZE 10
-#define MAX_HIST_SIZE 15
+#define MAX_HIST_SIZE 25
 #define COMMAND_INDEX 0
 #define IDENTIFIER_INDEX 1
 #define PATH_INDEX 0
@@ -19,11 +19,14 @@ typedef struct {
   char body[MAX_PATH_SIZE];
 } path;
 
+extern void set_dir();
 extern void parse_input(char *, char **, int *);
 extern int load_history(char **, int *);
 extern int update_history(char **, char[], int *);
 extern void print_path(path[], int);
 extern int update_path(path *, char **, int *);
 extern int external_command(path, char **, int, int);
+extern int write_to_history(char **, int);
+extern void debug_array(char **, int, char *);
 
 #endif // FUNC_H_

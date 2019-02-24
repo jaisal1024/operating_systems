@@ -142,7 +142,7 @@ int external_command(path path_, char **argv, int argc, int path_capacity) {
     return -1;
   }
   const char *delim = ":";
-  char *path_ptr = malloc(sizeof(char *));
+  char *path_ptr = malloc(MAX_INPUT_SIZE);
   char *token;
   char *cwd;
   char path_list[MAX_NUM_OF_PATHS_2][MAX_PATH_SIZE];

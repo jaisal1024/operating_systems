@@ -360,10 +360,8 @@ int fork_exec_and_wait(char *file, char **argv, int argc) {
   int status = SUCCESS;
   switch ((child_pid = fork())) {
   case CHILD:
-    VLOG(DEBUG, "F: %s", file);
     argv[0] = file;
-    argv[argc + 1] = NULL;
-    debug_array(argv, 2, "WTF2");
+    argv[argc] = NULL;
     execv(file, argv);
     perror("exec failed");
     exit(EXIT_FAILURE);

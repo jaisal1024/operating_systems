@@ -1,13 +1,16 @@
 CC=gcc
-src = $(wildcard *.c)
-obj = $(src:.c=.o)
+CFLAGS = -Wall -g
 
-dash: $(obj)
-	$(CC) -o $@ $^
+OBJS = dash.o func.o common.o
+
+dash: $(OBJS)
+	$(CC) -o dash $(OBJS)
+
+dash: common.h func.h
 
 .PHONY: clean
 clean:
-	rm -f $(obj) dash
+	rm -f $(OBJS) dash
 	rm -f .history
 	touch .history
 	rm -f *.gch

@@ -1,6 +1,6 @@
 #include "common.h"
 
 // int verbose = ALL:
-// int warning
+// int debug = DEBUG;
 // int warning = NONE;
-int verbose = NONE;
+int verbose = ALL;

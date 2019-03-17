@@ -213,7 +213,7 @@ void parse_input(char _input[], char **argv, int *argc, const char *delim,
   }
   if (replace)
     replace_path_var(*argc, argv);
-  argv[(*argc) + 1] = NULL;
+  argv[(*argc)] = NULL;
   free(input_cpy);
 }
 
@@ -360,8 +360,8 @@ int fork_exec_and_wait(char *file, char **argv, int argc) {
   int status = SUCCESS;
   switch ((child_pid = fork())) {
   case CHILD:
-    argv[0] = file;
-    argv[argc] = NULL;
+    // argv[0] = file;
+    // argv[argc] = NULL;
     execv(file, argv);
     perror("exec failed");
     exit(EXIT_FAILURE);

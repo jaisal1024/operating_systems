@@ -12,7 +12,7 @@ int main(int argc, char **argv) {
   int i = 0, status;
   argc = 0;
   memset(argv, 0, argc * sizeof(*argv));
-  char *cmd[] = {"/exe", "main", NULL};
+  char *cmd[] = {"/bin/ls", NULL};
 
   // get input
   printf(">> ");

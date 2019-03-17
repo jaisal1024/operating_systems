@@ -9,8 +9,11 @@
 #include <unistd.h>
 
 static void strip(char *, int, char **);
+static void replace_path_var(int, char **);
 
 static char *history_file_dir;
+static int argc;
+static char **argv;
 extern char **environ;
 
 static void strip(char *_input, int argc, char **argv) {
@@ -25,18 +28,40 @@ static void strip(char *_input, int argc, char **argv) {
   memset(argv, 0, argc * sizeof(argv));
 }
 
-void execute_command(int argc, char **argv, char **history,
-                     int *hist_capacity) {
+static void replace_path_var(int argc, char **argv) {
+  int i;
+  for (i = 1; i < argc; i++) {
+    int loc = strcspn(argv[i], "$");
+    if (loc == strlen(argv[i]))
+      continue;
+    char *pre = malloc(sizeof(char) * loc);
+    char *dup = strdup(argv[i]);
+    char *cpy = strncpy(dup, argv[i] + loc + 1, strlen(argv[i]) - loc + 1);
+    char *env = getenv(cpy);
+    VLOG(DEBUG, "ENV: %s", env);
+    if (loc == 0)
+      snprintf(argv[i], strlen(env) + 1, "%s", env);
+    else {
+      strncpy(pre, argv[i], loc - 1);
+      snprintf(argv[i], strlen(pre) + strlen(env) + 1, "%s%s", pre, env);
+    }
+    VLOG(DEBUG, "IN: %s", argv[i]);
+    free(dup);
+    free(pre);
+  }
+  debug_array(argv, argc, "REPL");
+}
+void execute_command(char *_input, char **history, int *hist_capacity) {
   // declerations
-  char _input[MAX_INPUT_SIZE];
-  argc = 0;
   int j, status, i;
-
-  // get input
-  fgets(_input, MAX_INPUT_SIZE, stdin);
+  argc = 0;
+  argv = malloc(MAX_TOKEN_SIZE * sizeof(char *));
+  for (j = 0; j < MAX_TOKEN_SIZE; j++) {
+    argv[j] = malloc(MAX_INPUT_SIZE * sizeof(char));
+  }
 
   // parse input and check output
-  parse_input(_input, argv, &argc, " ");
+  parse_input(_input, argv, &argc, " ", 1);
   // debug_array(argv, argc, "BF");
   if (argc > 0) { // check input is tokenized as >1
     // check reference to history
@@ -52,7 +77,7 @@ void execute_command(int argc, char **argv, char **history,
           argc = 0;
           memset(argv, 0, MAX_TOKEN_SIZE * sizeof(&argv));
           strcpy(_input, history[ind]);
-          parse_input(_input, argv, &argc, " ");
+          parse_input(_input, argv, &argc, " ", 1);
         }
       }
     } else {
@@ -69,22 +94,21 @@ void execute_command(int argc, char **argv, char **history,
           if (chdir(home_dir) == 0)
             setenv("PWD", home_dir, 1);
           else
-            printf("%s\n", strerror(errno));
+            perror(NULL);
         } else {
-          printf("%s\n", strerror(errno));
+          perror(NULL);
         }
       } else {
         if (strncmp(argv[IDENTIFIER_INDEX], "..", 2) == 0) {
           // update PWD to parent directory
           char *copy_dir = dirname(getenv("PWD"));
-          VLOG(DEBUG, "CDIR: %s", copy_dir);
           if (access(copy_dir, 1) == 0) {
             if (chdir(copy_dir) == 0)
               setenv("PWD", copy_dir, 1);
             else
-              printf("%s\n", strerror(errno));
+              perror(NULL);
           } else {
-            printf("%s\n", strerror(errno));
+            perror(NULL);
           }
         } else {
           char *copy_dir = strdup(getenv("PWD"));
@@ -96,9 +120,9 @@ void execute_command(int argc, char **argv, char **history,
                 0) // if successful, reset the current directory
               setenv("PWD", copy_dir, 1);
             else
-              printf("%s\n", strerror(errno));
+              perror(NULL);
           } else {
-            printf("%s\n", strerror(errno));
+            perror(NULL);
           }
           free(copy_dir);
         }
@@ -113,7 +137,12 @@ void execute_command(int argc, char **argv, char **history,
       for (j = 0; j < MAX_HIST_SIZE; j++) {
         free(history[j]);
       }
+      for (j = 0; j < MAX_TOKEN_SIZE; j++) {
+        free(argv[j]);
+      }
       free(history);
+      free(argv);
+      free(history_file_dir);
       exit(EXIT_SUCCESS);
 
     } else if (strncmp(argv[COMMAND_INDEX], "export", 6) == 0 && argc <= 2) {
@@ -153,16 +182,18 @@ int init_dir() {
                setenv("PATH", "", 1);
 
   // set the home dir as the original path upon invokation
-  char *filepath = malloc(strlen(cur_dir) * sizeof(char) + sizeof(char) * 10);
-  filepath = strncpy(filepath, cur_dir, strlen(cur_dir));
-  history_file_dir = strncat(filepath, "/.history", sizeof(char) * 10);
-  free(filepath);
+  history_file_dir = malloc(strlen(cur_dir) * sizeof(char) + sizeof(char) * 10);
+  history_file_dir = strncpy(history_file_dir, cur_dir, strlen(cur_dir));
+  history_file_dir = strncat(history_file_dir, "/.history", sizeof(char) * 10);
   return status && history_file_dir != NULL;
 }
-void parse_input(char _input[], char **argv, int *argc, const char *delim) {
+void parse_input(char _input[], char **argv, int *argc, const char *delim,
+                 int replace) {
   // declerations
   char *token;
   strip(_input, *argc, argv);
+  *argc = 0;
+  // argv[*(argc)++] = "./dash\0";
   char *input_cpy = strdup(_input);
 
   /* -------------parsed_input----------------------
@@ -180,6 +211,9 @@ void parse_input(char _input[], char **argv, int *argc, const char *delim) {
       argv[(*argc)++] = token;
     }
   }
+  if (replace)
+    replace_path_var(*argc, argv);
+  argv[(*argc) + 1] = NULL;
   free(input_cpy);
 }
 
@@ -250,7 +284,7 @@ int update_path(char **argv) {
   }
   if (i > 0) {
     if (setenv(temp_path_.identifier, temp_path_.body, 1) == -1)
-      perror("update PATH failed");
+      perror("add export variable failed");
     else
       return SUCCESS;
   }
@@ -295,7 +329,9 @@ int external_command(char **argv, int argc) {
 
   free(path_ptr);
   if (found) {
-    return fork_exec_and_wait(cwd, argv);
+    VLOG(DEBUG, "P: %s", argv[1]);
+    debug_array(argv, argc, "WTF");
+    return fork_exec_and_wait(cwd, argv, argc);
   } else {
     return FAILURE;
   }
@@ -319,11 +355,15 @@ int write_to_history(char **history, int hist_capacity) {
   return status;
 }
 
-int fork_exec_and_wait(char *file, char **argv) {
+int fork_exec_and_wait(char *file, char **argv, int argc) {
   int child_pid;
   int status = SUCCESS;
   switch ((child_pid = fork())) {
   case CHILD:
+    VLOG(DEBUG, "F: %s", file);
+    argv[0] = file;
+    argv[argc + 1] = NULL;
+    debug_array(argv, 2, "WTF2");
     execv(file, argv);
     perror("exec failed");
     exit(EXIT_FAILURE);

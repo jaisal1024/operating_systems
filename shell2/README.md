@@ -4,13 +4,14 @@ Operating Systems Spring 2019
 NYU Abu Dhabi
 
 ##to-do
-1. piping multiple processes
-2. exe.c functionality with built-in commands
-3. I/O indirection 
+1. fix issues with argv execv
+2. fix issues with argc[1] cut off on replacement of $
+3. fix segfault on exit after $ usage
+4. piping multiple processes
+5. I/O indirection
+6. new README.MD file
 
-##dash
-
-## exe
+## dash
 ### Loading history
 if there is no .history file, the program will notify the user that the load history failed. It will not block the dash program though. Once the program is exited once, the .history file will be created and written to.
 ### Creating the Path

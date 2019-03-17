@@ -28,8 +28,11 @@ int main(int argc, char **argv) {
   }
 
   while (1) {
+    char _input[MAX_INPUT_SIZE];
     write(1, ">> ", 3);
-    execute_command(argc, argv, history, &hist_capacity);
+    // get input
+    fgets(_input, MAX_INPUT_SIZE, stdin);
+    execute_command(_input, history, &hist_capacity);
   }
   return EXIT_SUCCESS;
 }

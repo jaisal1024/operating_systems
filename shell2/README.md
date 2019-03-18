@@ -4,7 +4,6 @@ Operating Systems Spring 2019
 NYU Abu Dhabi
 
 ##to-do
-1. fix issues with argv execv
 2. fix issues with argc[1] cut off on replacement of $
 3. fix segfault on exit after $ usage
 4. piping multiple processes

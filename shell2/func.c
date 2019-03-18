@@ -34,20 +34,24 @@ static void replace_path_var(int argc, char **argv) {
     int loc = strcspn(argv[i], "$");
     if (loc == strlen(argv[i]))
       continue;
-    char *pre = malloc(sizeof(char) * loc);
-    char *dup = strdup(argv[i]);
+    char *dup = strndup(argv[i], strlen(argv[i]) + 1);
     char *cpy = strncpy(dup, argv[i] + loc + 1, strlen(argv[i]) - loc + 1);
-    char *env = getenv(cpy);
-    VLOG(DEBUG, "ENV: %s", env);
-    if (loc == 0)
-      snprintf(argv[i], strlen(env) + 1, "%s", env);
-    else {
+    char *env = strndup(getenv(cpy), strlen(getenv(cpy)) + 1);
+    VLOG(DEBUG, "ENV: %s - %lu", env, strlen(env));
+    if (loc == 0) {
+      memset(argv[i], 0, strlen(argv[i]) + 1);
+      strncpy(argv[i], env, strlen(env) + 1);
+      // memcpy()
+    } else {
+      char *pre = malloc(sizeof(char) * loc);
+      memset(argv[i], 0, strlen(argv[i]));
       strncpy(pre, argv[i], loc - 1);
       snprintf(argv[i], strlen(pre) + strlen(env) + 1, "%s%s", pre, env);
+      free(pre);
     }
     VLOG(DEBUG, "IN: %s", argv[i]);
+    free(env);
     free(dup);
-    free(pre);
   }
   debug_array(argv, argc, "REPL");
 }
@@ -360,8 +364,6 @@ int fork_exec_and_wait(char *file, char **argv, int argc) {
   int status = SUCCESS;
   switch ((child_pid = fork())) {
   case CHILD:
-    // argv[0] = file;
-    // argv[argc] = NULL;
     execv(file, argv);
     perror("exec failed");
     exit(EXIT_FAILURE);

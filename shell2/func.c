@@ -41,6 +41,7 @@ static void replace_path_var(int argc, char **argv) {
     if (loc == 0) {
       memset(argv[i], 0, strlen(argv[i]) + 1);
       strncpy(argv[i], env, strlen(env) + 1);
+      // snprintf(argv[i], strlen(env) + 1, "%s", env);
       // memcpy()
     } else {
       char *pre = malloc(sizeof(char) * loc);

@@ -1,0 +1,10 @@
+ls
+ls fsdafj
+exit
+ls $PWD
+ls $PWD $PATH
+exit
+ls $PWD
+export PATH=/bin
+echo $PWD $PATH
+exit

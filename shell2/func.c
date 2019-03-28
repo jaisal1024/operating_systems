@@ -8,13 +8,13 @@
 #include <sys/errno.h>
 #include <unistd.h>
 
-static void strip(char *, int, char **);
+static void strip(char *, int, char ***);
 static void replace_path_var(int, char ***);
 
 static char *history_file_dir;
 extern char **environ;
 
-static void strip(char *_input, int argc, char **argv) {
+static void strip(char *_input, int argc, char ***_argv) {
   // replace special characters in input
   int i;
   for (i = 0; i < strlen(_input); i++) {
@@ -23,39 +23,32 @@ static void strip(char *_input, int argc, char **argv) {
     }
   }
   // set to empty
-  memset(argv, 0, argc * sizeof(argv));
+  memset(*_argv, 0, argc * MAX_INPUT_SIZE);
 }
 
-static void replace_path_var(int argc, char ***argv) {
-  int i;
+static void replace_path_var(int argc, char ***_argv) {
+  char ** argv = *_argv;
+  int i, loc;
   for (i = 1; i < argc; i++) {
-    int loc = strcspn((*argv)[i], "$");
-    if (loc == strlen((*argv)[i]))
+    loc = strcspn(argv[i], "$");
+    if (loc == strlen(argv[i]))
       continue;
-    char *dup = strndup((*argv)[i], strlen((*argv)[i]) + 1);
-    char *cpy = strncpy(dup, (*argv)[i] + loc + 1, strlen((*argv)[i]) - loc + 1);
+    char *cpy = malloc(MAX_PATH_ID_SIZE);
+    char *dup = strdup(argv[i]+loc+1);
+    memset(cpy, 0, MAX_PATH_ID_SIZE);
+    memcpy(cpy, dup, strlen(dup));
+    VLOG(DEBUG, "CPY:%s", cpy);
     if (getenv(cpy) == NULL) {
+      free(cpy);
       free(dup);
       continue;
     }
     char *env = strndup(getenv(cpy), strlen(getenv(cpy)) + 1);
-    if (loc == 0) {
-      memset((*argv)[i], 0, strlen((*argv)[i]) + 1);
-      //(*argv)[i] = realloc((*argv)[i], strlen(env)+ 1);
-      //strncpy(*argv[i], env, MAX_INPUT_SIZE);
-      snprintf((*argv)[i], MAX_INPUT_SIZE, "%s", env);
-      // memcpy()
-    } else {
-      char *pre = malloc(sizeof(char) * loc);
-      strncpy(pre, (*argv)[i], loc - 1);
-      memset((*argv)[i], 0, strlen((*argv)[i]));
-      //argv[i] = realloc((*argv)[i], strlen(env)+ strlen(pre)+ 1);
-      snprintf((*argv)[i], MAX_INPUT_SIZE, "%s%s", pre, env);
-      free(pre);
-    }
-    VLOG(DEBUG, "IN: %s", (*argv)[i]);
-    free(env);
+    argv[i] = realloc(argv[i], strlen(argv[i]) + strlen(env) + 1);
+    memmove(argv[i]+loc, env, strlen(env)+1);
     free(dup);
+    free(env);
+    free(cpy);
   }
 }
 void execute_command(char *_input, char **history, int *hist_capacity) {
@@ -66,15 +59,16 @@ void execute_command(char *_input, char **history, int *hist_capacity) {
   for (j = 0; j < MAX_TOKEN_SIZE; j++) {
     _argv[j] = malloc(MAX_INPUT_SIZE * sizeof(char));
     if (_argv[j] == NULL){
-      perror("mem allocation failed");
+      perror("memory allocation failed");
       exit(EXIT_FAILURE);
     }
   }
 
   // parse input and check output
-  parse_input(_input, _argv, &_argc, " ");
+  parse_input(_input, &_argv, &_argc, " ");
   replace_path_var(_argc, &_argv);
-  debug_array(_argv, _argc, "REPL");
+
+
   // debug_array(argv, argc, "BF");
   if (_argc > 0) { // check input is tokenized as >1
     // check reference to history
@@ -90,7 +84,7 @@ void execute_command(char *_input, char **history, int *hist_capacity) {
           _argc = 0;
           memset(_argv, 0, MAX_TOKEN_SIZE * sizeof(&_argv));
           strcpy(_input, history[ind]);
-          parse_input(_input, _argv, &_argc, " ");
+          parse_input(_input, &_argv, &_argc, " ");
           replace_path_var(_argc, &_argv);
         }
       }
@@ -201,10 +195,11 @@ int init_dir() {
   history_file_dir = strncat(history_file_dir, "/.history", sizeof(char) * 10);
   return status && history_file_dir != NULL;
 }
-void parse_input(char _input[], char **argv, int *argc, const char *delim) {
+void parse_input(char _input[], char ***_argv, int *argc, const char *delim) {
+  char ** argv = *_argv;
   // declerations
   char *token;
-  strip(_input, *argc, argv);
+  strip(_input, *argc, _argv);
   *argc = 0;
   // argv[*(argc)++] = "./dash\0";
   char *input_cpy = strdup(_input);
@@ -221,13 +216,11 @@ void parse_input(char _input[], char **argv, int *argc, const char *delim) {
       if (token[strlen(token) - 1] < 32) {
         token[strlen(token) - 1] = '\0';
       }
-
-      argv[(*argc)++] = token;
+      snprintf(argv[(*argc)++], strlen(token)+1, "%s", token);
     }
   }
   // if (replace)
   //   replace_path_var(*argc, argv);
-  argv[(*argc)] = NULL;
   free(input_cpy);
 }
 
@@ -240,7 +233,7 @@ int load_history(char **history, int *hist_capacity) {
   fp = fopen(history_file_dir, "r");
   if (fp == NULL)
     return -1;
-  while ((ln_size = getline(&ln, &cap, fp)) > 0) {
+  while ((ln_size = getline(&ln, &cap, fp)) > 0 && (*hist_capacity) < MAX_HIST_SIZE) {
     snprintf(history[(*hist_capacity)++], ln_size, "%s", ln);
   }
   fclose(fp);
@@ -288,8 +281,6 @@ int update_path(char **argv) {
   char *token;
   int i = 0;
 
-  VLOG(DEBUG, "HERE PATH");
-
   while ((token = strsep(&argv[IDENTIFIER_INDEX], delim)) != NULL) {
     if (*token != '\0') {
       if (!i++)
@@ -333,10 +324,8 @@ int external_command(char **argv, int argc) {
   }
 
   for (i = 0; i < path_list_ind; i++) {
-    VLOG(DEBUG, "START");
     cwd = strncat(path_list[i], "/\0", 2);
     cwd = strncat(cwd, argv[COMMAND_INDEX], strlen(argv[COMMAND_INDEX]) + 1);
-    VLOG(DEBUG, "PATH CHECK %s", cwd);
     if (access(cwd, 1) == 0) {
       found = 1;
       // printf("%s is an external command (%s)\n", argv[COMMAND_INDEX], cwd);
@@ -346,8 +335,7 @@ int external_command(char **argv, int argc) {
 
   free(path_ptr);
   if (found) {
-    VLOG(DEBUG, "P: %s", argv[1]);
-    debug_array(argv, argc, "WTF");
+    VLOG(DEBUG, "PATH: %s%s", argv[1], cwd);
     return fork_exec_and_wait(cwd, argv, argc);
   } else {
     return FAILURE;
@@ -377,6 +365,7 @@ int fork_exec_and_wait(char *file, char **argv, int argc) {
   int status = SUCCESS;
   switch ((child_pid = fork())) {
   case CHILD:
+    argv[argc] = NULL;
     execv(file, argv);
     perror("exec failed");
     exit(EXIT_FAILURE);

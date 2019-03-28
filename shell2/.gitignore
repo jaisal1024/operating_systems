@@ -1,6 +1,9 @@
 # Project specs
 test_folder
+test
 test.c
+pipe.c
+a.out
 export
 
 # Byte

@@ -63,8 +63,8 @@ void execute_command(char *_input, char **history, int *hist_capacity) {
       exit(EXIT_FAILURE);
     }
   }
-
   // parse input and check output
+  strip(_input, _argc, &_argv);
   parse_input(_input, &_argv, &_argc, " ");
   replace_path_var(_argc, &_argv);
 
@@ -82,9 +82,10 @@ void execute_command(char *_input, char **history, int *hist_capacity) {
         if (ind <= *hist_capacity) {
           // re-parse the input from the historical input line
           _argc = 0;
-          memset(_argv, 0, MAX_TOKEN_SIZE * sizeof(&_argv));
-          strcpy(_input, history[ind]);
+          strncpy(_input, history[ind], MAX_INPUT_SIZE);
+          strip(_input, _argc, &_argv);
           parse_input(_input, &_argv, &_argc, " ");
+          VLOG(DEBUG, "HERE");
           replace_path_var(_argc, &_argv);
         }
       }
@@ -196,10 +197,9 @@ int init_dir() {
   return status && history_file_dir != NULL;
 }
 void parse_input(char _input[], char ***_argv, int *argc, const char *delim) {
-  char ** argv = *_argv;
+  char **argv = *_argv;
   // declerations
   char *token;
-  strip(_input, *argc, _argv);
   *argc = 0;
   // argv[*(argc)++] = "./dash\0";
   char *input_cpy = strdup(_input);

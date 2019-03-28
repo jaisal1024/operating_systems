@@ -19,7 +19,7 @@ int main(int argc, char **argv) {
   fgets(_input, MAX_INPUT_SIZE, stdin);
 
   // parse input and check output
-  parse_input(_input, argv, &argc, "|");
+  parse_input(_input, &argv, &argc, "|");
   debug_array(argv, argc, "Check strsep pipe");
   int child_ids[argc - 1];
 
@@ -37,18 +37,20 @@ int main(int argc, char **argv) {
         write(fd_pipe[WRITE], _input, strlen(_input));
         execv(cmd[0], cmd);
         perror("exec failed ");
+        exit(EXIT_FAILURE);
       } else if (i < argc - 1) { // i is not FIRST or LAST COMMAND
         dup2(fd_pipe[WRITE], STDIN_FILENO);
         dup2(fd_pipe[READ], READ);
         //  write(fd_pipe[WRITE], fd_pipe[READ]);
         execv(cmd[0], cmd);
         perror("exec failed");
+        exit(EXIT_FAILURE);
       } else { // i is LAST COMMAND
         close(fd_pipe[WRITE]);
         dup2(fd_pipe[READ], READ);
         execv(cmd[0], cmd);
         perror("exec failed ");
-        exit(EXIT_SUCCESS);
+        exit(EXIT_FAILURE);
       }
       break;
 

@@ -4,12 +4,9 @@ Operating Systems Spring 2019
 NYU Abu Dhabi
 
 ##to-do
-2. fix issues with argc[1] cut off on replacement of $
-3. fix abort trap issue with echo $PWD and no PATH initialized. Sometimes throws object freed is being accessed.
-3. test replacement of $ in middle of word
-4. piping multiple processes
-5. I/O indirection
-6. new README.MD file
+1. piping multiple processes
+2. I/O indirection
+3. new README.MD file
 
 ## dash
 ### Loading history

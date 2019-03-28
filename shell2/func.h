@@ -28,7 +28,7 @@ typedef struct {
 
 extern void execute_command(char *, char **, int *);
 extern int init_dir();
-extern void parse_input(char *, char ***, int *, const char *);
+extern void parse_input(char *, char ***, int *, const char *, int);
 extern int load_history(char **, int *);
 extern int update_history(char **, char[], int *);
 extern void print_path();

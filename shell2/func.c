@@ -65,7 +65,7 @@ void execute_command(char *_input, char **history, int *hist_capacity) {
   }
   // parse input and check output
   strip(_input, _argc, &_argv);
-  parse_input(_input, &_argv, &_argc, " ");
+  parse_input(_input, &_argv, &_argc, " ", 0);
   replace_path_var(_argc, &_argv);
 
 
@@ -84,8 +84,7 @@ void execute_command(char *_input, char **history, int *hist_capacity) {
           _argc = 0;
           strncpy(_input, history[ind], MAX_INPUT_SIZE);
           strip(_input, _argc, &_argv);
-          parse_input(_input, &_argv, &_argc, " ");
-          VLOG(DEBUG, "HERE");
+          parse_input(_input, &_argv, &_argc, " ", 0);
           replace_path_var(_argc, &_argv);
         }
       }
@@ -196,7 +195,7 @@ int init_dir() {
   history_file_dir = strncat(history_file_dir, "/.history", sizeof(char) * 10);
   return status && history_file_dir != NULL;
 }
-void parse_input(char _input[], char ***_argv, int *argc, const char *delim) {
+void parse_input(char _input[], char ***_argv, int *argc, const char *delim, int main) {
   char **argv = *_argv;
   // declerations
   char *token;
@@ -216,11 +215,12 @@ void parse_input(char _input[], char ***_argv, int *argc, const char *delim) {
       if (token[strlen(token) - 1] < 32) {
         token[strlen(token) - 1] = '\0';
       }
-      snprintf(argv[(*argc)++], strlen(token)+1, "%s", token);
+      if (main)
+        argv[(*argc)++] = token;
+      else
+        snprintf(argv[(*argc)++], strlen(token)+1, "%s", token);
     }
   }
-  // if (replace)
-  //   replace_path_var(*argc, argv);
   free(input_cpy);
 }
 

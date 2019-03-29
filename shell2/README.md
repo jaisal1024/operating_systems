@@ -4,8 +4,8 @@ Operating Systems Spring 2019
 NYU Abu Dhabi
 
 ##to-do
-1. debug grep not working
-2. I/O indirection
+1. debug piping not working - specifically grep & indirection
+2. test I/O indirection
 3. new README.MD file
 
 ## dash

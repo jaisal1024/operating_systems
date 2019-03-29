@@ -15,9 +15,12 @@
 #define WRITE 1
 #define CHILD 0
 #define FORK_FAILED -1
-#define FIRST_CMD 0
 #define SUCCESS 0
 #define FAILURE -1
+#define FIRST_CMD 0
+#define MIDDLE_CMD -1
+#define LAST_CMD 1
+#define ONLY_CMD 2
 
 #define length_of(str) sizeof(str) / sizeof(str[0])
 
@@ -26,7 +29,7 @@ typedef struct {
   char body[MAX_PATH_SIZE];
 } path;
 
-extern void execute_command(char *, char **, int *);
+extern void execute_command(char *, char **, int *, int);
 extern int init_dir();
 extern void parse_input(char *, char ***, int *, const char *, int);
 extern int load_history(char **, int *);
@@ -34,8 +37,8 @@ extern int update_history(char **, char[], int *);
 extern void print_path();
 extern int update_path(char **);
 extern int external_command(char **, int);
-extern int fork_exec_and_wait(char *, char **, int);
 extern int write_to_history(char **, int);
+extern int fork_exec_and_wait(char *, char **, int);
 extern void debug_array(char **, int, char *);
 
 #endif // FUNC_H_

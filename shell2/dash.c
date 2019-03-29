@@ -10,7 +10,7 @@
 int main(int argc, char **argv) {
   // declare variables
   int hist_capacity = 0;
-  int status, j, i = 0, read_fd = 0;
+  int status, j, i = 0, read_fd = 0, in_cpy, out_cpy;
   int fd[2];
   pid_t child_pid;
   // get and store current directory
@@ -36,8 +36,15 @@ int main(int argc, char **argv) {
     fgets(_input, MAX_INPUT_SIZE, stdin);
     parse_input(_input, &argv, &argc, "|", 1);
 
-    if (argc == 1){
-      execute_command(_input, history, &hist_capacity);
+    if (argc == 1) {
+      // save file descriptors for overwrite issue
+      in_cpy = dup(STDIN_FILENO);
+      out_cpy = dup(STDOUT_FILENO);
+      // execute single command
+      execute_command(_input, history, &hist_capacity, ONLY_CMD);
+      // reset file descriptors
+      dup2(in_cpy, STDIN_FILENO);
+      dup2(out_cpy, STDOUT_FILENO);
       continue;
     }
     fflush(stdin);
@@ -47,16 +54,21 @@ int main(int argc, char **argv) {
       pipe(fd);
       switch ((child_pid = fork())) {
       case CHILD:
-        if (i < argc-1) { // NOT LAST COMMAND
+        if (i == FIRST_CMD) {
+          dup2(fd[WRITE], WRITE);
+          close(fd[READ]);
+          execute_command(argv[i], history, &hist_capacity, FIRST_CMD);
+          exit(EXIT_SUCCESS);
+        } else if (i < argc - 1) { // NOT LAST COMMAND
           dup2(read_fd, READ);
           dup2(fd[WRITE], WRITE);
           close(fd[READ]);
-          execute_command(argv[i], history, &hist_capacity);
+          execute_command(argv[i], history, &hist_capacity, MIDDLE_CMD);
           exit(EXIT_SUCCESS);
         } else { // i is LAST COMMAND
           dup2(read_fd, READ);
           close(fd[READ]);
-          execute_command(argv[i], history, &hist_capacity);
+          execute_command(argv[i], history, &hist_capacity, LAST_CMD);
           exit(EXIT_SUCCESS);
         }
         break;
@@ -68,7 +80,7 @@ int main(int argc, char **argv) {
       default:
         waitpid(child_pid, &status, 0);
         close(fd[WRITE]);
-  			read_fd = fd[READ];
+        read_fd = fd[READ];
         break;
       }
       i++;

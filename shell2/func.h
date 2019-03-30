@@ -21,8 +21,8 @@
 #define MIDDLE_CMD -1
 #define LAST_CMD 1
 #define ONLY_CMD 2
-#define FOUND 1
 #define NOT_FOUND 0
+#define FOUND 1
 
 #define length_of(str) sizeof(str) / sizeof(str[0])
 

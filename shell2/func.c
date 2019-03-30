@@ -189,8 +189,7 @@ void execute_command(char *_input, char **history, int *hist_capacity,
 }
 
 int hist_reference(char *_input, char **history, int hist_capacity) {
-  int status = NOT_FOUND;
-  if (strlen(_input) < 3 && _input[0] == '!') {
+  if (strlen(_input) < 4 && _input[0] == '!') {
     if (isdigit(_input[1])) {
       // convert 2nd and 3rd element of char array to number for hist
       char *buf = malloc(2 * sizeof(char));
@@ -199,12 +198,12 @@ int hist_reference(char *_input, char **history, int hist_capacity) {
       free(buf);
       if (ind <= hist_capacity) {
         // re-parse the input from the historical input line
-        memcpy(_input, history[ind], strlen(history[ind]) + 1);
-        status = FOUND;
+        snprintf(_input, strlen(history[ind]) + 1, "%s", history[ind]);
+        return FOUND;
       }
     }
   }
-  return status;
+  return NOT_FOUND;
 }
 
 void strip(char *_input) {

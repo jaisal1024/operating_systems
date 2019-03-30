@@ -50,7 +50,6 @@ int main(int argc, char **argv) {
           history, _input,
           &hist_capacity); // if not a reference to memory, add to the history
     }
-    VLOG(DEBUG, "%s", _input);
     parse_input(_input, &argv, &argc, "|", 1);
 
     if (argc == 1) {

@@ -132,7 +132,8 @@ void execute_command(char *_input, char **history, int *hist_capacity,
             perror(NULL);
           }
         } else {
-          char *copy_dir = strdup(getenv("PWD"));
+          char *copy_dir = malloc(MAX_PATH_SIZE);
+          snprintf(copy_dir, strlen(getenv("PWD")) + 1, "%s", getenv("PWD"));
           copy_dir = strncat(copy_dir, "/\0", 2);
           copy_dir = strncat(copy_dir, _argv[IDENTIFIER_INDEX],
                              strlen(_argv[IDENTIFIER_INDEX]) + 1);

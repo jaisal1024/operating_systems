@@ -208,7 +208,7 @@ void execute_command(char *_input, char **history, int *hist_capacity,
 
       } else {
         // check for external command using path_[PATH_INDEX] variable
-        status = external_command(_argv, _argc);
+        status = external_command(_argv, _argc, cmd);
         if (status == FAILURE)
           fprintf(stderr, "command not found\n");
       }
@@ -336,7 +336,7 @@ int update_path(char **argv) {
   return FAILURE;
 }
 
-int external_command(char **argv, int argc) {
+int external_command(char **argv, int argc, int cmd) {
   char *path_ = getenv("PATH");
   if (path_ == NULL || strlen(path_) == 0) {
     return FAILURE;
@@ -374,7 +374,7 @@ int external_command(char **argv, int argc) {
   free(path_ptr);
   if (found) {
     VLOG(DEBUG, "PATH: %s%s", argv[1], cwd);
-    return fork_exec_and_wait(cwd, argv, argc);
+    return fork_exec_and_wait(cwd, argv, argc, cmd);
   } else {
     return FAILURE;
   }
@@ -428,7 +428,13 @@ static int redirect_output(char *input) {
   return SUCCESS;
 }
 
-int fork_exec_and_wait(char *file, char **argv, int argc) {
+int fork_exec_and_wait(char *file, char **argv, int argc, int cmd) {
+  if (cmd != ONLY_CMD) {
+    argv[argc] = NULL;
+    execv(file, argv);
+    perror("exec failed");
+    exit(EXIT_FAILURE);
+  }
   int child_pid;
   int status = SUCCESS;
   switch ((child_pid = fork())) {

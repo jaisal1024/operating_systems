@@ -10,9 +10,13 @@
 int main(int argc, char **argv) {
   // declare variables
   int hist_capacity = 0;
-  int status, j, i = 0, read_fd = 0, in_cpy, out_cpy;
+  int status, j, i, read_fd = 0, in_cpy, out_cpy;
   int fd[2];
   pid_t child_pid;
+
+  // clear system
+  system("clear");
+
   // get and store current directory
   if (init_dir() == FAILURE) {
     perror("initialize PATH failed");
@@ -30,6 +34,7 @@ int main(int argc, char **argv) {
   }
 
   while (1) {
+    i = 0;
     char _input[MAX_INPUT_SIZE];
     write(1, ">> ", 3);
     // get input
@@ -47,8 +52,6 @@ int main(int argc, char **argv) {
       dup2(out_cpy, STDOUT_FILENO);
       continue;
     }
-    fflush(stdin);
-    fflush(stdout);
 
     while (i < argc) {
       pipe(fd);
@@ -85,9 +88,8 @@ int main(int argc, char **argv) {
       }
       i++;
     }
-
-    close(fd[READ]);
-    close(fd[WRITE]);
   }
+  close(fd[READ]);
+  close(fd[WRITE]);
   return EXIT_SUCCESS;
 }

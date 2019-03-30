@@ -1,8 +1,0 @@
-history
-export PATH=/bin:/usr/bin
-cat test
-cat test | grep bum
-history
-history
-make clean
-exit

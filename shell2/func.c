@@ -61,6 +61,8 @@ static int replace_path_var_and_indirect(int *_argc, char ***_argv, int cmd) {
 }
 
 static void shift_array(char ***_argv, int *_argc, int start) {
+  // shift argv array 2 places left for indirection, effectively removing the
+  // indirection commands
   char **argv = *_argv;
   int argc = *_argc;
   int i;
@@ -189,6 +191,7 @@ void execute_command(char *_input, char **history, int *hist_capacity,
 }
 
 int hist_reference(char *_input, char **history, int hist_capacity) {
+  // replace input with historical reference
   if (strlen(_input) < 4 && _input[0] == '!') {
     if (isdigit(_input[1])) {
       // convert 2nd and 3rd element of char array to number for hist

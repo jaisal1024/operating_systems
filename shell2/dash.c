@@ -34,13 +34,15 @@ int main(int argc, char **argv) {
   }
 
   while (1) {
+    // receive input
     i = 0;
     char _input[MAX_INPUT_SIZE];
     write(1, ">> ", 3);
     // get input
     fgets(_input, MAX_INPUT_SIZE, stdin);
 
-    if (strlen(_input) == 0)
+    // check its not just a newline
+    if (strlen(_input) == 1 && _input[1] < 32)
       continue;
 
     // check reference to history
@@ -50,6 +52,7 @@ int main(int argc, char **argv) {
           history, _input,
           &hist_capacity); // if not a reference to memory, add to the history
     }
+    // parse input on strsep of pipe |
     parse_input(_input, &argv, &argc, "|", 1);
 
     if (argc == 1) {
@@ -64,11 +67,13 @@ int main(int argc, char **argv) {
       continue;
     }
 
+    // for multiple piped commands
     while (i < argc) {
       pipe(fd);
+      // fork and switch statement
       switch ((child_pid = fork())) {
-      case CHILD:
-        if (i == FIRST_CMD) {
+      case CHILD:             // CHILD
+        if (i == FIRST_CMD) { // FIRST COMMAND
           dup2(fd[WRITE], WRITE);
           close(fd[READ]);
           execute_command(argv[i], history, &hist_capacity, FIRST_CMD);
@@ -87,11 +92,11 @@ int main(int argc, char **argv) {
         }
         break;
 
-      case FORK_FAILED:
+      case FORK_FAILED: // FAILED
         perror("fork failed");
         exit(EXIT_FAILURE);
 
-      default:
+      default: // PARENT
         waitpid(child_pid, &status, 0);
         close(fd[WRITE]);
         read_fd = fd[READ];
@@ -100,6 +105,7 @@ int main(int argc, char **argv) {
       i++;
     }
   }
+  // CLOSE FD descriptors and exit
   close(fd[READ]);
   close(fd[WRITE]);
   return EXIT_SUCCESS;

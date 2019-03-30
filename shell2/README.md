@@ -4,28 +4,26 @@ Operating Systems Spring 2019
 NYU Abu Dhabi
 
 ##to-do
-1. fix history reference
-2. add comments
-3. new README.MD file
-4. check commands
-5. check on server
-6. submit
+1. check on server
+2. submit
 
 ## dash
 ### Loading history
 if there is no .history file, the program will notify the user that the load history failed. It will not block the dash program though. Once the program is exited once, the .history file will be created and written to.
 ### Creating the Path
 the path is created using an array of struct path called path_ which stores an array of unique identifiers and a body for each PATH object. The default "PATH" variable is added upon initialization.
-### while(!exit) - Main Loop
+### while(1) - Main Loop
 The loop within main which runs the code for each command from the input proceeds in the following sequence
 1. receives the input
-2. tokenizes the input
+2. tokenizes the input on pipe
 3. checks that the number of tokens is greater than 0
 4. checks if the command is a reference to a historical command
 5. if 4 is not true, updates the history data structure using the update_history func
-6. parses through the built-in commands: cd, pwd, export, history and exit
-7. if 6 is not true, checks for an external command using the external_command func using the path_[PATH_INDEX].body elements
-8. if 7 is not true, command not found
+6. checks if the number of individual commands is 1. if so execute that single command (continue to step 8)
+7. if not, create a pipe, loop through each command and fork, in the child process execute each command by step 8. Pipe the std-in from the last command the std-out to the next command (unless the last command)
+8. execution of individual commands: first resolve any indirection or variable replacement then parses through the built-in commands: cd, pwd, export, history and exit
+9. if 8 is not true, checks for an external command using the external_command func. If it locates the file, fork and exec's the new operation.
+10. if 9 is not true, command not found
 ### Input
 the program waits for user input
 it gets each line of input and passes it to the parse_input function to tokenize

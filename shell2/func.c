@@ -7,6 +7,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/errno.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 static int replace_path_var_and_indirect(int *, char ***, int);

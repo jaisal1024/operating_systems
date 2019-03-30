@@ -33,6 +33,7 @@ int main(int argc, char **argv) {
         dup2(fd[WRITE], WRITE);
         close(fd[READ]);
         execv(cmd[i][0], cmd[i]);
+
         perror("exec failed");
         exit(EXIT_FAILURE);
       } else { // i is LAST COMMAND

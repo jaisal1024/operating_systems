@@ -234,6 +234,7 @@ int init_dir() {
   history_file_dir = strncat(history_file_dir, "/.history", sizeof(char) * 10);
   return status && history_file_dir != NULL;
 }
+
 void parse_input(char _input[], char ***_argv, int *argc, const char *delim,
                  int main) {
   char **argv = *_argv;

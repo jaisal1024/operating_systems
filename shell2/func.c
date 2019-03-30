@@ -445,7 +445,7 @@ static int redirect_output(char *_file) {
 int fork_exec_and_wait(char *file, char **argv, int argc, int cmd) {
   if (cmd != ONLY_CMD) {
     argv[argc] = NULL;
-    execv(file, argv);
+    execvp(file, argv);
     perror("exec failed");
     exit(EXIT_FAILURE);
   }
@@ -454,7 +454,7 @@ int fork_exec_and_wait(char *file, char **argv, int argc, int cmd) {
   switch ((child_pid = fork())) {
   case CHILD:
     argv[argc] = NULL;
-    execv(file, argv);
+    execvp(file, argv);
     perror("exec failed");
     exit(EXIT_FAILURE);
     break;

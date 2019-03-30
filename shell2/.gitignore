@@ -5,6 +5,8 @@ test.c
 pipe.c
 a.out
 export
+.DS_Store
+dash
 
 # Byte
 -compiled / optimized / DLL files

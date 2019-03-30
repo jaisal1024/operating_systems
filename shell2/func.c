@@ -9,7 +9,6 @@
 #include <sys/errno.h>
 #include <unistd.h>
 
-static void strip(char *, int, char ***);
 static int replace_path_var_and_indirect(int *, char ***, int);
 static int redirect_input(char *);
 static int redirect_output(char *);
@@ -18,18 +17,6 @@ static void shift_array(char ***, int *, int);
 static char *history_file_dir;
 extern char **environ;
 
-static void strip(char *_input, int argc, char ***_argv) {
-  // replace special characters in input
-  int i;
-  for (i = 0; i < strlen(_input); i++) {
-    if (_input[i] < 32) {
-      _input[i] = '\0';
-    }
-  }
-  // set to empty
-  memset(*_argv, 0, argc * MAX_INPUT_SIZE);
-}
-
 static int replace_path_var_and_indirect(int *_argc, char ***_argv, int cmd) {
   char **argv = *_argv;
   int argc = *_argc;
@@ -37,16 +24,17 @@ static int replace_path_var_and_indirect(int *_argc, char ***_argv, int cmd) {
   int i, loc;
   for (i = 1; i < argc; i++) {
     // redirect input
-    if ((cmd == FIRST_CMD || cmd == ONLY_CMD) && argv[i][0] == '<') {
-      ret = redirect_input(argv[i]);
+    if ((cmd == FIRST_CMD || cmd == ONLY_CMD) && argv[i][0] == '<' &&
+        (i + 1) < argc) {
+      ret = redirect_input(argv[i + 1]);
       shift_array(&argv, &argc, i);
-      debug_array(argv, argc, "AFTER IN");
-      i--;
+      i -= 2;
       // redirect output
-    } else if ((cmd == LAST_CMD || cmd == ONLY_CMD) && argv[i][0] == '>') {
-      ret = redirect_output(argv[i]);
+    } else if ((cmd == LAST_CMD || cmd == ONLY_CMD) && argv[i][0] == '>' &&
+               (i + 1) < argc) {
+      ret = redirect_output(argv[i + 1]);
       shift_array(&argv, &argc, i);
-      i--;
+      i -= 2;
     } else {
       // check to replace $
       loc = strcspn(argv[i], "$");
@@ -77,14 +65,17 @@ static void shift_array(char ***_argv, int *_argc, int start) {
   int argc = *_argc;
   int i;
 
-  for (i = start; i < argc - 1; i++) {
-    argv[i] = argv[i + 1];
+  for (i = start; i < argc; i++) {
+    argv[i] = argv[i + 2];
   }
-  if (start == argc - 1)
+  if (start == argc - 2) {
     argv[start] = NULL;
-  else
+    argv[start + 1] = NULL;
+  } else {
     argv[argc - 1] = NULL;
-  *_argc = argc - 1;
+    argv[argc - 2] = NULL;
+  }
+  *_argc = argc - 2;
 }
 
 void execute_command(char *_input, char **history, int *hist_capacity,
@@ -100,120 +91,130 @@ void execute_command(char *_input, char **history, int *hist_capacity,
       exit(EXIT_FAILURE);
     }
   }
+
+  // check for historical reference
+  strip(_input);
+  hist_reference(_input, history, *hist_capacity);
+
   // parse input and check output
-  strip(_input, _argc, &_argv);
   parse_input(_input, &_argv, &_argc, " ", 0);
   status = replace_path_var_and_indirect(&_argc, &_argv, cmd);
 
-  if (_argc > 0) { // check input is tokenized as >1
-    // check reference to history
-    if (_argv[COMMAND_INDEX][0] - '!' == 0) {
-      if (isdigit(_argv[COMMAND_INDEX][1])) {
-        // convert 2nd and 3rd element of char array to number for hist
-        char *buf = malloc(2 * sizeof(char));
-        strncpy(buf, _argv[COMMAND_INDEX] + 1, 2);
-        int ind = atoi(buf) - 1;
-        free(buf);
-        if (ind <= *hist_capacity) {
-          // re-parse the input from the historical input line
-          _argc = 0;
-          strncpy(_input, history[ind], MAX_INPUT_SIZE);
-          strip(_input, _argc, &_argv);
-          parse_input(_input, &_argv, &_argc, " ", 0);
-          status = replace_path_var_and_indirect(&_argc, &_argv, cmd);
+  if (_argc > 0 && status != FAILURE) { // check input is tokenized as >1
+                                        // check not failed on indirect
+    if (strncmp(_argv[COMMAND_INDEX], "cd", 2) == 0) {
+      // if just "cd" is passed, go to home directory
+      if (_argc < 2) {
+        // update PWD to home directory
+        char *home_dir = getenv("HOME");
+        if (access(home_dir, 1) == 0) {
+          if (chdir(home_dir) == 0)
+            setenv("PWD", home_dir, 1);
+          else
+            perror(NULL);
+        } else {
+          perror(NULL);
         }
-      }
-    } else {
-      // if not a reference to memory, add to the history
-      update_history(history, _input, hist_capacity);
-    }
-    if (status != FAILURE) {
-      if (strncmp(_argv[COMMAND_INDEX], "cd", 2) == 0) {
-        // if just "cd" is passed, go to home directory
-        if (_argc < 2) {
-          // update PWD to home directory
-          char *home_dir = getenv("HOME");
-          if (access(home_dir, 1) == 0) {
-            if (chdir(home_dir) == 0)
-              setenv("PWD", home_dir, 1);
+      } else {
+        if (strncmp(_argv[IDENTIFIER_INDEX], "..", 2) == 0) {
+          // update PWD to parent directory
+          char *copy_dir = dirname(getenv("PWD"));
+          if (access(copy_dir, 1) == 0) {
+            if (chdir(copy_dir) == 0)
+              setenv("PWD", copy_dir, 1);
             else
               perror(NULL);
           } else {
             perror(NULL);
           }
         } else {
-          if (strncmp(_argv[IDENTIFIER_INDEX], "..", 2) == 0) {
-            // update PWD to parent directory
-            char *copy_dir = dirname(getenv("PWD"));
-            if (access(copy_dir, 1) == 0) {
-              if (chdir(copy_dir) == 0)
-                setenv("PWD", copy_dir, 1);
-              else
-                perror(NULL);
-            } else {
+          char *copy_dir = strdup(getenv("PWD"));
+          copy_dir = strncat(copy_dir, "/\0", 2);
+          copy_dir = strncat(copy_dir, _argv[IDENTIFIER_INDEX],
+                             strlen(_argv[IDENTIFIER_INDEX]) + 1);
+          if (access(copy_dir, 1) == 0) {
+            if (chdir(copy_dir) ==
+                0) // if successful, reset the current directory
+              setenv("PWD", copy_dir, 1);
+            else
               perror(NULL);
-            }
           } else {
-            char *copy_dir = strdup(getenv("PWD"));
-            copy_dir = strncat(copy_dir, "/\0", 2);
-            copy_dir = strncat(copy_dir, _argv[IDENTIFIER_INDEX],
-                               strlen(_argv[IDENTIFIER_INDEX]) + 1);
-            if (access(copy_dir, 1) == 0) {
-              if (chdir(copy_dir) ==
-                  0) // if successful, reset the current directory
-                setenv("PWD", copy_dir, 1);
-              else
-                perror(NULL);
-            } else {
-              perror(NULL);
-            }
-            free(copy_dir);
+            perror(NULL);
           }
+          free(copy_dir);
         }
-
-      } else if (strncmp(_argv[COMMAND_INDEX], "pwd", 3) == 0) {
-        printf("%s\n", getenv("PWD"));
-
-      } else if (strncmp(_argv[COMMAND_INDEX], "exit", 4) == 0) {
-        // free allocated memory and set exit to true
-        write_to_history(history, *hist_capacity);
-        for (j = 0; j < MAX_HIST_SIZE; j++) {
-          free(history[j]);
-        }
-        for (j = 0; j < MAX_TOKEN_SIZE; j++) {
-          free(_argv[j]);
-        }
-        free(history);
-        free(_argv);
-        free(history_file_dir);
-        exit(EXIT_SUCCESS);
-
-      } else if (strncmp(_argv[COMMAND_INDEX], "export", 6) == 0 &&
-                 _argc <= 2) {
-        if (_argc < 2) { // print path_ export object if argc = 1
-          print_path();
-        } else { // call update_path if argc = 2
-          status = update_path(_argv);
-        }
-
-      } else if (strncmp(_argv[COMMAND_INDEX], "history", 7) == 0) {
-        // print history object
-        for (i = 0; i < *hist_capacity; i++) {
-          // check if new line is needed to add to printf statement
-          if (history[i][strlen(history[i])] == '\n')
-            printf("\t%i %s", i + 1, history[i]);
-          else
-            printf("\t%i %s\n", i + 1, history[i]);
-        }
-
-      } else {
-        // check for external command using path_[PATH_INDEX] variable
-        status = external_command(_argv, _argc, cmd);
-        if (status == FAILURE)
-          fprintf(stderr, "command not found\n");
       }
+
+    } else if (strncmp(_argv[COMMAND_INDEX], "pwd", 3) == 0) {
+      printf("%s\n", getenv("PWD"));
+
+    } else if (strncmp(_argv[COMMAND_INDEX], "exit", 4) == 0) {
+      // free allocated memory and set exit to true
+      write_to_history(history, *hist_capacity);
+      for (j = 0; j < MAX_HIST_SIZE; j++) {
+        free(history[j]);
+      }
+      for (j = 0; j < MAX_TOKEN_SIZE; j++) {
+        free(_argv[j]);
+      }
+      free(history);
+      free(_argv);
+      free(history_file_dir);
+      exit(EXIT_SUCCESS);
+
+    } else if (strncmp(_argv[COMMAND_INDEX], "export", 6) == 0 && _argc <= 2) {
+      if (_argc < 2) { // print path_ export object if argc = 1
+        print_path();
+      } else { // call update_path if argc = 2
+        status = update_path(_argv);
+      }
+
+    } else if (strncmp(_argv[COMMAND_INDEX], "history", 7) == 0) {
+      // print history object
+      for (i = 0; i < *hist_capacity; i++) {
+        // check if new line is needed to add to printf statement
+        if (history[i][strlen(history[i])] == '\n')
+          printf("\t%i %s", i + 1, history[i]);
+        else
+          printf("\t%i %s\n", i + 1, history[i]);
+      }
+
+    } else {
+      // check for external command using path_[PATH_INDEX] variable
+      status = external_command(_argv, _argc, cmd);
+      if (status == FAILURE)
+        fprintf(stderr, "command not found\n");
     }
   } // argc is 0, nothing passed or failed to redirect input/output
+}
+
+int hist_reference(char *_input, char **history, int hist_capacity) {
+  int status = NOT_FOUND;
+  if (strlen(_input) < 3 && _input[0] == '!') {
+    if (isdigit(_input[1])) {
+      // convert 2nd and 3rd element of char array to number for hist
+      char *buf = malloc(2 * sizeof(char));
+      strncpy(buf, _input + 1, 2);
+      int ind = atoi(buf) - 1;
+      free(buf);
+      if (ind <= hist_capacity) {
+        // re-parse the input from the historical input line
+        memcpy(_input, history[ind], strlen(history[ind]) + 1);
+        status = FOUND;
+      }
+    }
+  }
+  return status;
+}
+
+void strip(char *_input) {
+  // replace special characters in input
+  int i;
+  for (i = 0; i < strlen(_input) + 1; i++) {
+    if (_input[i] < 32) {
+      _input[i] = '\0';
+    }
+  }
 }
 
 // set the home directory for the history file to access
@@ -337,43 +338,52 @@ int update_path(char **argv) {
 }
 
 int external_command(char **argv, int argc, int cmd) {
-  char *path_ = getenv("PATH");
-  if (path_ == NULL || strlen(path_) == 0) {
-    return FAILURE;
-  }
-  const char *delim = ":";
-  char *path_ptr = malloc(MAX_INPUT_SIZE);
   char *token;
   char *cwd;
   char path_list[MAX_NUM_OF_PATHS_2][MAX_PATH_SIZE];
   int path_list_ind = 0;
   int i = 0;
+  int ref = 0;
   int found = 0;
-  strncpy(path_ptr, path_, strlen(path_));
+  char *path_ptr = strdup(getenv("PATH"));
+  const char *delim = ":";
 
   // clear buffers
   memset(path_list, 0,
          sizeof(path_list[0][0]) * MAX_NUM_OF_PATHS_2 * MAX_PATH_SIZE);
 
-  while ((token = strsep(&path_ptr, delim)) != NULL) {
-    if (*token != '\0') {
-      strncpy(path_list[path_list_ind++], token, strlen(token) * sizeof(char));
+  if (argv[0][0] == '.') {
+    strncpy(path_list[path_list_ind++], getenv("PWD"), strlen(getenv("PWD")));
+    ref = 1;
+  } else {
+    if (path_ptr == NULL || strlen(path_ptr) == 0) {
+      return FAILURE;
+    }
+    while ((token = strsep(&path_ptr, delim)) != NULL) {
+      if (*token != '\0') {
+        strncpy(path_list[path_list_ind++], token,
+                strlen(token) * sizeof(char));
+      }
     }
   }
 
   for (i = 0; i < path_list_ind; i++) {
-    cwd = strncat(path_list[i], "/\0", 2);
-    cwd = strncat(cwd, argv[COMMAND_INDEX], strlen(argv[COMMAND_INDEX]) + 1);
+    if (ref) {
+      cwd = strncat(path_list[i], argv[COMMAND_INDEX] + 1,
+                    strlen(argv[COMMAND_INDEX]) - 1);
+    } else {
+      cwd = strncat(path_list[i], "/\0", 2);
+      cwd = strncat(cwd, argv[COMMAND_INDEX], strlen(argv[COMMAND_INDEX]) + 1);
+    }
     if (access(cwd, 1) == 0) {
       found = 1;
-      // printf("%s is an external command (%s)\n", argv[COMMAND_INDEX], cwd);
       break;
     }
   }
 
   free(path_ptr);
   if (found) {
-    VLOG(DEBUG, "PATH: %s%s", argv[1], cwd);
+    VLOG(DEBUG, "PATH: %s%s", argv[0], cwd);
     return fork_exec_and_wait(cwd, argv, argc, cmd);
   } else {
     return FAILURE;
@@ -398,9 +408,8 @@ int write_to_history(char **history, int hist_capacity) {
   return status;
 }
 
-static int redirect_input(char *input) {
+static int redirect_input(char *_file) {
   int fp;
-  char *_file = strdup(input + 1);
   VLOG(DEBUG, "FLE:%s", _file);
   if ((fp = open(_file, O_RDONLY, 0644)) < 0) {
     perror(_file); /* open failed */
@@ -413,9 +422,8 @@ static int redirect_input(char *input) {
   return SUCCESS;
 }
 
-static int redirect_output(char *input) {
+static int redirect_output(char *_file) {
   int fp;
-  char *_file = strdup(input + 1);
   VLOG(DEBUG, "FLE:%s", _file);
   if ((fp = open(_file, O_WRONLY | O_TRUNC | O_CREAT, 0644)) < 0) {
     perror(_file); /* open failed */

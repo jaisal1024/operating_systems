@@ -1,0 +1,13 @@
+history]
+export PATH=/bin:usr/bin
+!2
+cat test
+exit
+history
+!2
+exit
+history
+!2
+exit
+!1
+!2

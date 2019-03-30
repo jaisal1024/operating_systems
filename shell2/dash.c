@@ -39,6 +39,18 @@ int main(int argc, char **argv) {
     write(1, ">> ", 3);
     // get input
     fgets(_input, MAX_INPUT_SIZE, stdin);
+
+    if (strlen(_input) == 0)
+      continue;
+
+    // check reference to history
+    if (!hist_reference(_input, history, hist_capacity)) {
+      strip(_input);
+      update_history(
+          history, _input,
+          &hist_capacity); // if not a reference to memory, add to the history
+    }
+    VLOG(DEBUG, "%s", _input);
     parse_input(_input, &argv, &argc, "|", 1);
 
     if (argc == 1) {

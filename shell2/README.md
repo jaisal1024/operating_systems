@@ -4,9 +4,12 @@ Operating Systems Spring 2019
 NYU Abu Dhabi
 
 ##to-do
-1. debug piping not working - specifically grep & indirection
-2. test I/O indirection
+1. fix history reference
+2. add comments
 3. new README.MD file
+4. check commands
+5. check on server
+6. submit
 
 ## dash
 ### Loading history

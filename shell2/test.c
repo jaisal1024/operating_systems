@@ -7,63 +7,58 @@
 #include <unistd.h>
 
 int main(int argc, char **argv) {
-  char _input[MAX_INPUT_SIZE];
-  int fd_pipe[2];
-  int i = 0, status;
-  argc = 0;
-  memset(argv, 0, argc * sizeof(*argv));
-  char *cmd[] = {"/bin/ls", NULL};
+  int fd[2];
+  pid_t child_pid;
+  int i = 0, status, read_fd = 0;
+  char *cat_cmd[] = {"/bin/cat", "test", NULL};
+  char *grep_cmd[] = {"/usr/bin/grep", "hello", NULL};
+  char *grep[] = {"/usr/bin/grep", "there", NULL};
+  char **cmd[] = {cat_cmd, grep_cmd, grep, NULL};
+  argc = 3;
+  fflush(stdin);
+  fflush(stdout);
 
-  // get input
-  printf(">> ");
-  fgets(_input, MAX_INPUT_SIZE, stdin);
-
-  // parse input and check output
-  parse_input(_input, &argv, &argc, "|");
-  debug_array(argv, argc, "Check strsep pipe");
-  int child_ids[argc - 1];
-
-  pipe(fd_pipe);
-
-  while (i < argc) {
-    VLOG(DEBUG, "%d", i);
-    switch ((child_ids[i] = fork())) {
-      fflush(stdin);
-      fflush(stdout);
+  while (cmd[i] != NULL) {
+    pipe(fd);
+    switch ((child_pid = fork())) {
     case CHILD:
-      if (i == FIRST_CMD) { // FIRST COMMAND
-        close(fd_pipe[READ]);
-        dup2(fd_pipe[WRITE], STDIN_FILENO);
-        write(fd_pipe[WRITE], _input, strlen(_input));
-        execv(cmd[0], cmd);
-        perror("exec failed ");
+      if (i == FIRST_CMD) {
+        dup2(fd[WRITE], WRITE);
+        close(fd[READ]);
+        execv(cmd[i][0], cmd[i]);
+        perror("exec failed");
         exit(EXIT_FAILURE);
-      } else if (i < argc - 1) { // i is not FIRST or LAST COMMAND
-        dup2(fd_pipe[WRITE], STDIN_FILENO);
-        dup2(fd_pipe[READ], READ);
-        //  write(fd_pipe[WRITE], fd_pipe[READ]);
-        execv(cmd[0], cmd);
+      } else if (i < argc - 1) { // NOT LAST COMMAND
+        dup2(read_fd, READ);
+        dup2(fd[WRITE], WRITE);
+        close(fd[READ]);
+        execv(cmd[i][0], cmd[i]);
+
         perror("exec failed");
         exit(EXIT_FAILURE);
       } else { // i is LAST COMMAND
-        close(fd_pipe[WRITE]);
-        dup2(fd_pipe[READ], READ);
-        execv(cmd[0], cmd);
+        dup2(read_fd, READ);
+        close(fd[READ]);
+        execv(cmd[i][0], cmd[i]);
         perror("exec failed ");
         exit(EXIT_FAILURE);
       }
       break;
 
     case FORK_FAILED:
-      perror("fork failed ");
+      perror("fork failed");
       exit(EXIT_FAILURE);
+
     default:
-      waitpid(child_ids[i++], &status, 0);
+      waitpid(child_pid, &status, 0);
+      close(fd[WRITE]);
+      read_fd = fd[READ];
       break;
     }
+    i++;
   }
 
-  close(fd_pipe[READ]);
-  close(fd_pipe[WRITE]);
+  close(fd[READ]);
+  close(fd[WRITE]);
   exit(EXIT_SUCCESS);
 }

@@ -14,3 +14,9 @@ clean:
 	rm -f .history
 	touch .history
 	rm -f *.gch
+	rm -f a.out
+	rm -f tester
+
+.PHONY: tester
+tester:
+	$(CC) -o tester test.c

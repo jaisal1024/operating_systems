@@ -4,7 +4,7 @@ Operating Systems Spring 2019
 NYU Abu Dhabi
 
 ##to-do
-1. check on server
+1. fix last weird error
 2. submit
 
 ## dash

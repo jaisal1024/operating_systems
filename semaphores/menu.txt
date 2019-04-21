@@ -1,0 +1,10 @@
+1, BBQ-Chicken-Salad, 8.95, 18, 24
+2, Spinach-Power, 9.15, 12, 16
+3, Garden-Salad, 4.75, 10, 13
+4, Steak-Blue_Cheese, 7.25, 12, 15
+5, Ceasaers-Salad, 6.75, 13, 15
+6, Chicken-Salad, 9.15, 15, 21
+7, Mongolian-BBQ-Plate, 9.75, 21, 31
+8, Club-Sandwich, 6.35, 13, 18
+9, Belgian-Cheese-Sub, 10.25, 15, 19
+10, Rio-Grande-Beef-Sub, 9.35, 18, 20

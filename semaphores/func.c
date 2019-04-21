@@ -1,0 +1,11 @@
+#include "common.h"
+#include "func.h"
+#include <ctype.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/errno.h>
+#include <sys/mman.h>
+#include <sys/shm.h>
+#include <unistd.h>

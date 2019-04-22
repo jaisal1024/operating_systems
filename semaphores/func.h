@@ -5,6 +5,7 @@
 
 #define SEGMENT_SIZE 2048
 #define MAX_INPUT_SIZE 200
+#define DESCR_SIZE 100
 #define MAX_CLIENTS_SERVED 0
 #define MAX_CLIENTS 20
 #define SUCCESS 1
@@ -18,7 +19,7 @@
 
 typedef struct {
   int item_id;
-  char *description;
+  char description[DESCR_SIZE];
   double price;
   int min_time;
   int max_time;

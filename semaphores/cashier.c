@@ -14,7 +14,7 @@
 int main(int argc, char **argv) {
   // INIT VARS
   int service_time, break_time, shmid, i, parameters = 0;
-  void *mem_ptr;
+  // shared_mem *mem_ptr;
   shared_mem *shared_mem_;
 
   // READ ARGV INPUTS
@@ -51,13 +51,14 @@ int main(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
 
-  mem_ptr = shmat(shmid, (void *)0, 0);
-  if (*(int *)mem_ptr == -1) {
+  shared_mem_ = (shared_mem *)shmat(shmid, NULL, 0);
+  if (*(int *)shared_mem_ == -1) {
     perror("Attach Shared Memory Failed");
     exit(EXIT_FAILURE);
   }
-  shared_mem_ = mem_ptr;
+  // shared_mem_ = mem_ptr;
   printf("Shared memory attached at: %d\n", shmid);
+  VLOG(DEBUG, "Menu 1: %d", shared_mem_->menu[0].price);
   if (sem_post(shared_mem_->sem_cashiers) == -1)
     perror("sem_post failed");
 

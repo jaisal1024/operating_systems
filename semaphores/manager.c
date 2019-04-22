@@ -48,14 +48,14 @@ int main(int argc, char **argv) {
   }
 
   // SHARED MEMORY CREATION
-  shm_id = shmget(IPC_PRIVATE, SEGMENT_SIZE, 0666);
+  shm_id = shmget(IPC_PRIVATE, sizeof(shared_mem), IPC_CREAT | 0666);
   if (shm_id == -1) {
     perror("Create Shared Memory Failed");
     exit(EXIT_FAILURE);
   }
 
-  mem_ptr = shmat(shm_id, (void *)0, 0);
-  if (*(int *)mem_ptr == -1) {
+  shared_mem_ = (shared_mem *)shmat(shm_id, NULL, 0);
+  if (*(int *)shared_mem_ == -1) {
     perror("Attach Shared Memory Failed");
     exit(EXIT_FAILURE);
   }
@@ -76,7 +76,8 @@ int main(int argc, char **argv) {
           shared_mem_->menu[menu_index].item_id = atoi(token);
           break;
         case DESCR:
-          shared_mem_->menu[menu_index].description = token;
+          strncpy(shared_mem_->menu[menu_index].description, token,
+                  strlen(token));
           break;
         case PRICE:
           shared_mem_->menu[menu_index].price = atof(token);
@@ -101,6 +102,7 @@ int main(int argc, char **argv) {
   // INIT SEMAPHORES
   shared_mem_->sem_cashiers =
       sem_open("/SEM_CASHIER", O_CREAT, 0666, max_num_cashiers);
+  VLOG(DEBUG, "%d", shared_mem_->sem_cashiers);
   if (shared_mem_->sem_cashiers == SEM_FAILED) {
     perror("Sem Cashier Open Failed");
     exit(EXIT_FAILURE);
@@ -118,7 +120,8 @@ int main(int argc, char **argv) {
   }
 
   // ATTACH TO SHARED MEMORY
-  mem_ptr = shared_mem_;
+  // mem_ptr = shared_mem_;
+  VLOG(DEBUG, "Menu 1: %s", shared_mem_->menu[0].description);
 
   // PUT TO SLEEP TILL WOKEN UP
   if (sem_wait(shared_mem_->sem_clients) == -1) {

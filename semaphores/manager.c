@@ -16,10 +16,9 @@ extern char *tzname[2];
 
 int main(int argc, char **argv) {
   // INITIALIZE VARS
-  int shm_id, i, max_num_cashiers, parameters = FAILURE, menu_index = 0, status,
+  int shm_id, i, max_num_cashiers, parameters = FAILURE, menu_index = 0,
                                    avg_waiting_time, no_of_clients_served;
-  struct tm *timeptr = NULL;
-  void *mem_ptr;
+  time_t time_;
   FILE *fp;
   char *ln = NULL;
   size_t cap = MAX_INPUT_SIZE;
@@ -48,7 +47,7 @@ int main(int argc, char **argv) {
   }
 
   // SHARED MEMORY CREATION
-  shm_id = shmget(IPC_PRIVATE, sizeof(shared_mem), IPC_CREAT | 0666);
+  shm_id = shmget(IPC_PRIVATE, sizeof(shared_mem), IPC_CREAT | RW_ACCESS);
   if (shm_id == -1) {
     perror("Create Shared Memory Failed");
     exit(EXIT_FAILURE);
@@ -101,30 +100,27 @@ int main(int argc, char **argv) {
 
   // INIT SEMAPHORES
   shared_mem_->sem_cashiers =
-      sem_open("/SEM_CASHIER", O_CREAT, 0666, max_num_cashiers);
-  VLOG(DEBUG, "%d", shared_mem_->sem_cashiers);
+      sem_open(SEM_CASHIER, O_CREAT, RW_ACCESS, max_num_cashiers);
+
   if (shared_mem_->sem_cashiers == SEM_FAILED) {
     perror("Sem Cashier Open Failed");
     exit(EXIT_FAILURE);
   }
+
   shared_mem_->sem_clients =
-      sem_open("/SEM_CLIENT", O_CREAT, 0666, MAX_CLIENTS_SERVED);
+      sem_open(SEM_CLIENT, O_CREAT, RW_ACCESS, INIT_CLIENTS_SERVED);
   if (shared_mem_->sem_clients == SEM_FAILED) {
     perror("Sem Clients Open Failed");
     exit(EXIT_FAILURE);
   }
-  shared_mem_->sem_binary_locking = sem_open("/SEM_LOCK", O_CREAT, 0666, 1);
+  shared_mem_->sem_binary_locking = sem_open(SEM_LOCK, O_CREAT, RW_ACCESS, 1);
   if (shared_mem_->sem_binary_locking == SEM_FAILED) {
     perror("Sem Locking Open Failed");
     exit(EXIT_FAILURE);
   }
 
-  // ATTACH TO SHARED MEMORY
-  // mem_ptr = shared_mem_;
-  VLOG(DEBUG, "Menu 1: %s", shared_mem_->menu[0].description);
-
   // PUT TO SLEEP TILL WOKEN UP
-  if (sem_wait(shared_mem_->sem_clients) == -1) {
+  if (sem_wait(shared_mem_->sem_cashiers) == -1) {
     perror("Sem Client Wait Failed");
     exit(EXIT_FAILURE);
   }
@@ -140,9 +136,8 @@ int main(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
   // print time of day in ASCII
-  timelocal(timeptr);
-  char *ascii_time = asctime(timeptr);
-  fprintf(fp, "%s\n", ascii_time);
+  time(&time_);
+  fprintf(fp, "%s", ctime(&time_));
   // print menu orders of the day - item_id, description, quantity
   for (i = 0; i < MENU_SIZE; i++) {
     if (shared_mem_->menu[i].quantity > 0) {
@@ -152,9 +147,24 @@ int main(int argc, char **argv) {
   }
   // print statistics of the day
   fprintf(fp, "Avg. Waiting Time: %d\n", avg_waiting_time);
-  fprintf(fp, "No. of Clients Served: %d\n", no_of_clients_served);
+  fprintf(fp, "No. of Clients Served: %d\n\n", no_of_clients_served);
 
   // GRACEFULLY EXIT
+  /* detach shared memeory and close semaphore*/
+  detach_shared_mem_and_close_sem(shared_mem_, shm_id);
+
+  /* close and remove semaphores */
+  sem_unlink(SEM_CASHIER);
+  sem_unlink(SEM_CLIENT);
+  sem_unlink(SEM_LOCK);
+
+  /* destroy shared memory */
+  if (shmctl(shm_id, IPC_RMID, (struct shmid_ds *)0) < 0) {
+    perror("semctl");
+    exit(EXIT_FAILURE);
+  }
+  printf("Releasing shared segment: %d\n", shm_id);
+  printf("See you tomorrow! \n");
 
   return EXIT_SUCCESS;
 }

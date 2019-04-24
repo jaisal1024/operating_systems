@@ -3,6 +3,7 @@
 #include <ctype.h>
 #include <fcntl.h>
 #include <semaphore.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,8 +17,8 @@ static void close_client(shared_mem *, int);
 
 int main(int argc, char **argv) {
   // INIT VARS
-  int item_id, eat_time, shmid, i, parameters = 0, clients_left = 0,
-                                   pid = (int)getpid();
+  int item_id, eat_time, shmid, i, parameters = 0, pid = (int)getpid(),
+                                   clients_left = 0;
   shared_mem *shared_mem_;
   time_t arr_time, dep_time;
   srand(1);
@@ -26,6 +27,7 @@ int main(int argc, char **argv) {
   for (i = 1; i < argc - 1; i++) {
     if (argv[i][0] == '-' && argv[i][1] == 'i') {
       item_id = atoi(argv[i + 1]);
+      item_id--;
       parameters++;
       // ERROR CHECK
       if (item_id < 0) {
@@ -76,6 +78,11 @@ int main(int argc, char **argv) {
     shared_mem_->counters_.client_queue--;
     clients_left = shared_mem_->counters_.client;
   } else {
+    if (sem_post(shared_mem_->semaphores_.client_lock) == -1) { // release lock
+      perror("sem_t CLIENT_LOCK post failed");
+      close_client(shared_mem_, shmid);
+    }
+    fprintf(stderr, "The Restaurant Queue is too long\n");
     close_client(shared_mem_, shmid);
   }
   if (sem_post(shared_mem_->semaphores_.client_lock) == -1) { // release lock
@@ -90,9 +97,10 @@ int main(int argc, char **argv) {
     perror("sem_t CLIENT_QUEUE post failed");
     close_client(shared_mem_, shmid);
   }
-  printf("Client %d has entered the queue\n", pid);
+  printf("Client %d has entered the cashier queue\n", pid);
 
   // WAIT FOR CASHIER QUEUE
+  VLOG(DEBUG, "WAITING IN CASHIER QUEUE");
   if (sem_wait(shared_mem_->semaphores_.cashier_queue) == -1) {
     perror("sem_t CASHIER_QUEUE wait failed");
     close_client(shared_mem_, shmid);
@@ -105,6 +113,7 @@ int main(int argc, char **argv) {
    * because the cashier is already locking here
    */
   int cur_client = MAX_CLIENTS - shared_mem_->counters_.client;
+  VLOG(DEBUG, "Cur_client: %d", cur_client);
   shared_mem_->clients[cur_client].item_id = item_id;
   shared_mem_->clients[cur_client].client_id = pid;
   shared_mem_->clients[cur_client].eat_time = eat_time;
@@ -116,10 +125,11 @@ int main(int argc, char **argv) {
     perror("sem_t CLIENT_CASHIER post failed");
     close_client(shared_mem_, shmid);
   }
+  VLOG(DEBUG, "DONE ORDERING");
 
   // WAIT TO BE SERVED BY CASHIER
   int cashier_time = shared_mem_->clients[cur_client].cashier_time;
-  printf("Cashier serving client %d (%d) in... %ds", pid, cur_client,
+  printf("Cashier serving client %d (%d) in... %d s\n", pid, cur_client,
          cashier_time);
   sleep(cashier_time);
 
@@ -127,7 +137,7 @@ int main(int argc, char **argv) {
   int food_time = randomize_bt(shared_mem_->menu[item_id].max_time,
                                shared_mem_->menu[item_id].min_time);
   shared_mem_->clients[cur_client].food_time = food_time;
-  printf("Food will be ready in... %ds", food_time);
+  printf("Food will be ready in... %d s\n", food_time);
   sleep(food_time);
 
   // JOIN SERVER QUEUE
@@ -135,16 +145,20 @@ int main(int argc, char **argv) {
     perror("sem_t SERVER_QUEUE post failed");
     close_client(shared_mem_, shmid);
   }
+  printf("Client %d (%d) has entered the serving queue\n", cur_client, pid);
   // WAIT FOR SERVER TO SERVE FOOD
   if (sem_wait(shared_mem_->semaphores_.client_server) == -1) {
     perror("sem_t CLIENT_SERVER wait failed");
     close_client(shared_mem_, shmid);
   }
+  shared_mem_->clients[cur_client].server_time = shared_mem_->server_time;
+  shared_mem_->server_time = 0;
   // SLEEP FOR EAT TIME THEN EXIT
+  printf("Client %d (%d) is eating for %d s\n", cur_client, pid, eat_time);
   sleep(eat_time);
 
   // CHECK IF THE LAST CLIENT
-  if (cur_client <= 1) {
+  if ((MAX_CLIENTS - cur_client) < 1) {
     shared_mem_->semaphores_.manager_lock = sem_open(SEM_MANAGER_LOCK, 0);
     if (sem_post(shared_mem_->semaphores_.manager_lock) == -1) {
       perror("sem_t MANAGER_LOCK post failed");
@@ -155,13 +169,15 @@ int main(int argc, char **argv) {
   shared_mem_->clients[cur_client].depart_time = (double)dep_time;
 
   // CLOSE AND DETACH MEMORY
-  detach_shared_mem(shared_mem_, shmid);
   sem_close(shared_mem_->semaphores_.client_queue);
   sem_close(shared_mem_->semaphores_.client_cashier);
   sem_close(shared_mem_->semaphores_.cashier_queue);
   sem_close(shared_mem_->semaphores_.server_queue);
   sem_close(shared_mem_->semaphores_.client_server);
   sem_close(shared_mem_->semaphores_.client_lock);
+
+  detach_shared_mem(shared_mem_, shmid);
+
   printf("Goodbye client - %d (%d)\n", pid, cur_client);
 
   return EXIT_SUCCESS;
@@ -169,13 +185,14 @@ int main(int argc, char **argv) {
 
 void close_client(shared_mem *shared_mem_, int shmid) {
 
-  detach_shared_mem(shared_mem_, shmid);
   sem_close(shared_mem_->semaphores_.client_queue);
   sem_close(shared_mem_->semaphores_.client_cashier);
   sem_close(shared_mem_->semaphores_.cashier_queue);
   sem_close(shared_mem_->semaphores_.server_queue);
   sem_close(shared_mem_->semaphores_.client_server);
   sem_close(shared_mem_->semaphores_.client_lock);
+
+  detach_shared_mem(shared_mem_, shmid);
 
   exit(EXIT_FAILURE);
 }

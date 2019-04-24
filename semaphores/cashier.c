@@ -69,10 +69,15 @@ int main(int argc, char **argv) {
     close_cashier(shared_mem_, shmid);
   }
   if (shared_mem_->counters_.cashier > 0) {
-    clients_left = --shared_mem_->counters_.client;
-    printf("Cashier %d is now serving clients\n",
-           clients_left + 1 - MAX_CLIENTS);
+    clients_left = shared_mem_->counters_.client;
+    shared_mem_->counters_.cashier--;
+    printf("Cashier %d is now serving clients\n", MAX_CLIENTS - clients_left);
   } else {
+    if (sem_post(shared_mem_->semaphores_.cashier_lock) == -1) { // release lock
+      perror("sem_t CASHIER_LOCK post failed");
+      close_cashier(shared_mem_, shmid);
+    }
+    fprintf(stderr, "Max Cashiers Reached\n");
     close_cashier(shared_mem_, shmid);
   }
   if (sem_post(shared_mem_->semaphores_.cashier_lock) == -1) { // release lock
@@ -81,16 +86,15 @@ int main(int argc, char **argv) {
   }
 
   while (clients_left > 0) {
-    VLOG(DEBUG, "BEFORE LOCK");
     if (sem_wait(shared_mem_->semaphores_.cashier_lock) == -1) { // acquire lock
       perror("sem_t CASHIER_LOCK wait failed");
       close_cashier(shared_mem_, shmid);
     }
-    VLOG(DEBUG, "AFTER LOCK");
     if (sem_trywait(shared_mem_->semaphores_.client_queue) == -1) {
+      VLOG(DEBUG, "%s", strerror(errno));
       if (errno == EAGAIN) {
         // TAKE A BREAK, no one in client queue
-        printf("Cashier is breaking for... %ds\n", break_time);
+        printf("Cashier is breaking for... %d s\n", break_time);
         if (sem_post(shared_mem_->semaphores_.cashier_lock) ==
             -1) { // release lock
           perror("sem_t CASHIER_LOCK post failed");
@@ -115,45 +119,53 @@ int main(int argc, char **argv) {
       // TAKING ORDER -- SERVICE TIME
       int this_service_time = randomize_n(service_time);
       int cur_client = MAX_CLIENTS - shared_mem_->counters_.client;
+      VLOG(DEBUG, "CUR_CLIENT: %d", cur_client);
       shared_mem_->clients[cur_client].cashier_time = this_service_time;
       // WAIT TILL CLIENT ADDS ORDER
+      VLOG(DEBUG, "AWAITING ORDERING");
       if (sem_wait(shared_mem_->semaphores_.client_cashier) == -1) {
         perror("sem_t CLIENT_CASHIER wait failed");
         close_cashier(shared_mem_, shmid);
       }
+      VLOG(DEBUG, "PAST ORDERING");
+      shared_mem_->counters_.client--;
       if (sem_post(shared_mem_->semaphores_.cashier_lock) ==
           -1) { // release lock
         perror("sem_t CASHIER_LOCK post failed");
         close_cashier(shared_mem_, shmid);
       }
-      printf("Cashier serving client %d (%d) in... %ds",
+      printf("Cashier serving client %d (%d) in... %d s\n",
              shared_mem_->clients[cur_client].client_id, cur_client,
              this_service_time);
       sleep(this_service_time);
       int order = shared_mem_->clients[i].item_id;
+      VLOG(DEBUG, "item_id: %d", order);
       shared_mem_->menu[order].quantity++;
       dump_to_database(shared_mem_, cur_client, order);
     }
     clients_left = shared_mem_->counters_.client;
+    VLOG(DEBUG, "Clients Left: %d", clients_left);
   }
 
   // DETACH SHARED MEM AND CLOSE SEMAPHORES
-  detach_shared_mem(shared_mem_, shmid);
   sem_close(shared_mem_->semaphores_.cashier_queue);
   sem_close(shared_mem_->semaphores_.cashier_lock);
   sem_close(shared_mem_->semaphores_.client_cashier);
   sem_close(shared_mem_->semaphores_.client_queue);
+
+  detach_shared_mem(shared_mem_, shmid);
 
   return EXIT_SUCCESS;
 }
 
 void close_cashier(shared_mem *shared_mem_, int shmid) {
 
-  detach_shared_mem(shared_mem_, shmid);
   sem_close(shared_mem_->semaphores_.cashier_queue);
   sem_close(shared_mem_->semaphores_.cashier_lock);
   sem_close(shared_mem_->semaphores_.client_cashier);
   sem_close(shared_mem_->semaphores_.client_queue);
+
+  detach_shared_mem(shared_mem_, shmid);
 
   exit(EXIT_FAILURE);
 }

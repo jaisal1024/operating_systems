@@ -54,6 +54,10 @@ int main(int argc, char **argv) {
     clients_left = shared_mem_->counters_.client;
   } else {
     fprintf(stderr, "Server already on the job\n");
+    if (sem_post(shared_mem_->semaphores_.server_lock) == -1) { // release lock
+      perror("sem_t SERVER_LOCK post failed");
+      close_server(shared_mem_, shmid);
+    }
     close_server(shared_mem_, shmid);
   }
   if (sem_post(shared_mem_->semaphores_.server_lock) == -1) { // release lock
@@ -61,37 +65,44 @@ int main(int argc, char **argv) {
     close_server(shared_mem_, shmid);
   }
 
-  while (clients_left < MAX_CLIENTS) {
+  while (clients_left > 0) {
     // WAIT FOR A DELIVERY
+    VLOG(DEBUG, "HERE");
     if (sem_wait(shared_mem_->semaphores_.server_queue) == -1) {
       perror("sem_t SERVER_QUEUE wait failed");
       close_server(shared_mem_, shmid);
     }
-    int service_time = randomize_n(TIME_SERVER);
-    // ADD service_time TO SHARED_MEM
-    sleep(service_time);
+    VLOG(DEBUG, "HERE");
+    int server_time = randomize_n(TIME_SERVER);
+    shared_mem_->server_time = server_time;
+    printf("Server serving client in... %d s\n", server_time);
+    sleep(server_time);
     // SIGNAL THE FOOD HAS BEEN SERVED
     if (sem_post(shared_mem_->semaphores_.client_server) == -1) {
       perror("sem_t SERVER_LOCK post failed");
       close_server(shared_mem_, shmid);
     }
+    clients_left = shared_mem_->counters_.client;
+    VLOG(DEBUG, "Clients Left: %d", clients_left);
   }
 
   // DETACH MEM AND CLOSE SEM
-  detach_shared_mem(shared_mem_, shmid);
   sem_close(shared_mem_->semaphores_.server_queue);
   sem_close(shared_mem_->semaphores_.server_lock);
   sem_close(shared_mem_->semaphores_.client_server);
+
+  detach_shared_mem(shared_mem_, shmid);
 
   return EXIT_SUCCESS;
 }
 
 void close_server(shared_mem *shared_mem_, int shmid) {
 
-  detach_shared_mem(shared_mem_, shmid);
   sem_close(shared_mem_->semaphores_.server_queue);
   sem_close(shared_mem_->semaphores_.server_lock);
   sem_close(shared_mem_->semaphores_.client_server);
+
+  detach_shared_mem(shared_mem_, shmid);
 
   exit(EXIT_FAILURE);
 }

@@ -76,6 +76,7 @@ typedef struct {
   semaphores semaphores_;
   client clients[MAX_CLIENTS];
   counters counters_;
+  int server_time;
 } shared_mem;
 
 extern shared_mem *attach_shared_mem(int);

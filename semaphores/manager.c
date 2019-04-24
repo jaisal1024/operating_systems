@@ -14,6 +14,9 @@
 
 extern char *tzname[2];
 
+static void sort_by_quantity(shared_mem *, int, int *);
+static int find_min(int *, shared_mem *);
+
 int main(int argc, char **argv) {
   // INITIALIZE VARS
   int shm_id, i, max_num_cashiers, parameters = FAILURE, menu_index = 0,
@@ -69,6 +72,8 @@ int main(int argc, char **argv) {
   shared_mem_->counters_.server = 1;
   shared_mem_->counters_.cashier = max_num_cashiers;
   shared_mem_->counters_.max_cashier = max_num_cashiers;
+  // SET SERVER TIME TO 0
+  shared_mem_->server_time = 0;
 
   // CREATE STRUCT, READ MENU
   fp = fopen(menu_dir, "r");
@@ -106,54 +111,54 @@ int main(int argc, char **argv) {
     shared_mem_->menu[menu_index].quantity = 0;
     menu_index++;
   }
-  printf("Menu loaded from ~/%s\n", menu_dir);
+  printf("Loaded %d Menu Items from ~/%s\n", menu_index, menu_dir);
   fclose(fp);
 
   // INIT SEMAPHORES
   shared_mem_->semaphores_.manager_lock =
-      sem_open(SEM_MANAGER_LOCK, O_CREAT, RW_ACCESS, 0);
+      sem_open(SEM_MANAGER_LOCK, O_CREAT | O_EXCL, RW_ACCESS, 0);
   if (shared_mem_->semaphores_.manager_lock == SEM_FAILED) {
     perror("Sem_t MANAGER_LOCK Open Failed");
     exit(EXIT_FAILURE);
   }
 
   shared_mem_->semaphores_.cashier_queue =
-      sem_open(SEM_CASHIER_QUEUE, O_CREAT, RW_ACCESS, 0);
+      sem_open(SEM_CASHIER_QUEUE, O_CREAT | O_EXCL, RW_ACCESS, 0);
   if (shared_mem_->semaphores_.cashier_queue == SEM_FAILED) {
     perror("Sem_t CASHIER_QUEUE Open Failed");
     exit(EXIT_FAILURE);
   }
 
   shared_mem_->semaphores_.cashier_lock =
-      sem_open(SEM_CASHIER_LOCK, O_CREAT, RW_ACCESS, 1);
+      sem_open(SEM_CASHIER_LOCK, O_CREAT | O_EXCL, RW_ACCESS, 1);
   if (shared_mem_->semaphores_.cashier_lock == SEM_FAILED) {
     perror("Sem_t CASHIER_LOCK Open Failed");
     exit(EXIT_FAILURE);
   }
 
   shared_mem_->semaphores_.client_cashier =
-      sem_open(SEM_CLIENT_CASHIER, O_CREAT, RW_ACCESS, 0);
+      sem_open(SEM_CLIENT_CASHIER, O_CREAT | O_EXCL, RW_ACCESS, 0);
   if (shared_mem_->semaphores_.client_cashier == SEM_FAILED) {
     perror("Sem_t CLIENT_CASHIER Open Failed");
     exit(EXIT_FAILURE);
   }
 
   shared_mem_->semaphores_.client_queue =
-      sem_open(SEM_CLIENT_QUEUE, O_CREAT, RW_ACCESS, 0);
+      sem_open(SEM_CLIENT_QUEUE, O_CREAT | O_EXCL, RW_ACCESS, 0);
   if (shared_mem_->semaphores_.client_queue == SEM_FAILED) {
     perror("Sem_t CLIENT_QUEUE Open Failed");
     exit(EXIT_FAILURE);
   }
 
   shared_mem_->semaphores_.client_lock =
-      sem_open(SEM_CLIENT_LOCK, O_CREAT, RW_ACCESS, 1);
+      sem_open(SEM_CLIENT_LOCK, O_CREAT | O_EXCL, RW_ACCESS, 1);
   if (shared_mem_->semaphores_.client_lock == SEM_FAILED) {
     perror("Sem_t CLIENT LOCK Open Failed");
     exit(EXIT_FAILURE);
   }
 
   shared_mem_->semaphores_.client_server =
-      sem_open(SEM_CLIENT_SERVER, O_CREAT, RW_ACCESS, 0);
+      sem_open(SEM_CLIENT_SERVER, O_CREAT | O_EXCL, RW_ACCESS, 0);
   if (shared_mem_->semaphores_.client_server == SEM_FAILED) {
     perror("Sem_t CLIENT_SERVER Open Failed");
     exit(EXIT_FAILURE);
@@ -167,23 +172,23 @@ int main(int argc, char **argv) {
   }
 
   shared_mem_->semaphores_.server_lock =
-      sem_open(SEM_SERVER_LOCK, O_CREAT, RW_ACCESS, 1);
+      sem_open(SEM_SERVER_LOCK, O_CREAT | O_EXCL, RW_ACCESS, 1);
   if (shared_mem_->semaphores_.server_lock == SEM_FAILED) {
     perror("Sem_t SERVER_LOCK Open Failed");
     exit(EXIT_FAILURE);
   }
 
-  // OUPUT TO DATABASE
+  // OPEN RESTO and PUT MANAGER TO SLEEP
+  printf("The Restaurant is now open at: %s", ctime(&time_));
+
+  // PRINT TIMESTAMP ONTO DATABSE
   fp = fopen(database_dir, "a");
   if (fp == NULL) {
     perror("Database Failed to Open");
   } else {
-    // print time of day in ASCII
     fprintf(fp, "%s", ctime(&time_));
   }
   fclose(fp);
-
-  printf("The Restaurant is now open at: %s", ctime(&time_));
 
   // PUT TO SLEEP TILL WOKEN UP
   if (sem_wait(shared_mem_->semaphores_.manager_lock) == -1) {
@@ -211,9 +216,10 @@ int main(int argc, char **argv) {
                   shared_mem_->clients[i].server_time;
       spending = shared_mem_->clients[i].bill;
 
-      fprintf(
-          fp_out, "Client %d spent %fs in the shop waited %fs and spent $%f\n",
-          shared_mem_->clients[i].client_id, time_in_shop, wait_time, spending);
+      fprintf(fp_out,
+              "Client %d spent %f s in the shop waited %f s and spent $ %f\n",
+              shared_mem_->clients[i].client_id, time_in_shop, wait_time,
+              spending);
       no_of_clients_served++;
       avg_time_in_shop += time_in_shop;
       avg_waiting_time += wait_time;
@@ -221,11 +227,23 @@ int main(int argc, char **argv) {
     }
     avg_time_in_shop /= no_of_clients_served;
     avg_waiting_time /= no_of_clients_served;
-    fprintf(fp, "Avg. Waiting Time: %f\n", avg_waiting_time);
-    fprintf(fp, "Avg. Time in the Shop: %f\n", avg_time_in_shop);
+    fprintf(fp, "Avg. Waiting Time: %f s\n", avg_waiting_time);
+    fprintf(fp, "Avg. Time in the Shop: %f s\n", avg_time_in_shop);
+
+    fprintf(fp, "Top 5 Menu Sales\n");
+    int top_5[5] = {0, 1, 2, 3, 4};
+    sort_by_quantity(shared_mem_, menu_index, &top_5[0]);
+    for (i = 0; i < 5; i++) {
+      if (shared_mem_->menu[top_5[i]].quantity > 0) {
+        VLOG(DEBUG, "top_5: %d", top_5[i]);
+        fprintf(fp, "%s : $ %f\n", shared_mem_->menu[top_5[i]].description,
+                shared_mem_->menu[top_5[i]].price *
+                    shared_mem_->menu[top_5[i]].quantity);
+      }
+    }
 
     fprintf(fp, "No. of Clients Served: %d\n", no_of_clients_served);
-    fprintf(fp, "Total Revenue: %f\n", revenue);
+    fprintf(fp, "Total Revenue: $ %f\n", revenue);
   }
   fclose(fp_out);
 
@@ -246,4 +264,26 @@ int main(int argc, char **argv) {
   printf("See you tomorrow! \n");
 
   return EXIT_SUCCESS;
+}
+
+void sort_by_quantity(shared_mem *shared_mem_, int menu_max, int *top_5) {
+  int i;
+  int min_index = find_min(&top_5[0], shared_mem_);
+  for (i = 5; i < menu_max; i++) {
+    if (shared_mem_->menu[i].quantity > shared_mem_->menu[min_index].quantity) {
+      top_5[min_index] = i;
+      find_min(&top_5[0], shared_mem_);
+    }
+  }
+}
+
+int find_min(int *top_5, shared_mem *shared_mem_) {
+  int i;
+  int min_index = 0;
+  for (i = 1; i < 5; i++) {
+    if (shared_mem_->menu[top_5[i]].quantity <
+        shared_mem_->menu[top_5[min_index]].quantity)
+      min_index = i;
+  }
+  return min_index;
 }

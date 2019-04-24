@@ -2,6 +2,10 @@
 test_folder
 test
 a.out
+cashier
+client
+manager
+server
 .DS_Store
 
 # Byte

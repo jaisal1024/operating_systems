@@ -29,6 +29,10 @@ client: $(OBJS_client)
 	$(CC)  $(CFLAGS) -o client $(OBJS_client) $(PTHD)
 client: common.h func.h
 
+.PHONY: del_sems
+del_sems: del_sems.o
+	$(CC) $(CFLAGS) del_sems.c
+
 .PHONY: clean
 clean:
 	rm -f $(OBJS_m) manager
@@ -37,5 +41,6 @@ clean:
 	rm -f $(OBJS_client) client
 	rm -f database.txt
 	touch database.txt
+	rm -f daily_stats
 	rm -f *.gch
 	rm -f a.out

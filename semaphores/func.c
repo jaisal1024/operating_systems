@@ -9,13 +9,23 @@
 #include <sys/errno.h>
 #include <sys/mman.h>
 #include <sys/shm.h>
+#include <time.h>
 #include <unistd.h>
 
-const char *SEM_CASHIER = "/SEM_CASHIER";
-const char *SEM_CLIENT = "/SEM_CLIENT";
-const char *SEM_LOCK = "/SEM_LOCK";
+const char *SEM_MANAGER_LOCK = "/MANAGER_LOCK";
+const char *SEM_CASHIER_QUEUE = "/CASHIER_QUEUE";
+const char *SEM_CASHIER_LOCK = "/CASHIER_LOCK";
+const char *SEM_CLIENT_CASHIER = "/CLIENT_CASHIER";
+const char *SEM_CLIENT_QUEUE = "/CLIENT_QUEUE";
+const char *SEM_CLIENT_SERVER = "/CLIENT_SERVER";
+const char *SEM_SERVER_QUEUE = "/SERVER_QUEUE";
+const char *SEM_SERVER_LOCK = "/SERVER_LOCK";
 
-extern shared_mem *attach_shared_mem_and_open_sem(int shmid) {
+const char *database_dir = "database.txt";
+
+extern int randomize_n(int max) { return rand() % max + 1; }
+
+extern shared_mem *attach_shared_mem(int shmid) {
   shared_mem *shared_mem_;
   shared_mem_ = (shared_mem *)shmat(shmid, NULL, 0);
   if ((int)shared_mem_ == -1) {
@@ -25,21 +35,45 @@ extern shared_mem *attach_shared_mem_and_open_sem(int shmid) {
 
   printf("Shared memory attached at: %d\n", shmid);
 
-  shared_mem_->sem_cashiers = sem_open(SEM_CASHIER, 0);
-  shared_mem_->sem_clients = sem_open(SEM_CLIENT, 0);
-  shared_mem_->sem_binary_locking = sem_open(SEM_LOCK, 0);
-
   return shared_mem_;
 }
 
-extern void detach_shared_mem_and_close_sem(shared_mem *shared_mem_,
-                                            int shmid) {
+extern void detach_shared_mem(shared_mem *shared_mem_, int shmid) {
+  if (shmdt((void *)shared_mem_) == -1)
+    perror("Shared Segment Detachment");
+  printf("Shared memory detached at: %d\n", shmid);
+}
 
-  sem_close(shared_mem_->sem_cashiers);
-  sem_close(shared_mem_->sem_clients);
-  sem_close(shared_mem_->sem_binary_locking);
+extern void detach_shared_mem_and_close_all_sem(shared_mem *shared_mem_,
+                                                int shmid) {
+
+  sem_close(shared_mem_->semaphores_.manager_lock);
+  sem_close(shared_mem_->semaphores_.cashier_queue);
+  sem_close(shared_mem_->semaphores_.cashier_lock);
+  sem_close(shared_mem_->semaphores_.client_cashier);
+  sem_close(shared_mem_->semaphores_.client_queue);
+  sem_close(shared_mem_->semaphores_.client_server);
+  sem_close(shared_mem_->semaphores_.server_queue);
+  sem_close(shared_mem_->semaphores_.server_lock);
 
   if (shmdt((void *)shared_mem_) == -1)
     perror("Shared Segment Detachment");
   printf("Shared memory detached at: %d\n", shmid);
+
+  /* close and remove semaphores */
+  sem_unlink(SEM_MANAGER_LOCK);
+  sem_unlink(SEM_CASHIER_QUEUE);
+  sem_unlink(SEM_CASHIER_LOCK);
+  sem_unlink(SEM_CLIENT_CASHIER);
+  sem_unlink(SEM_CLIENT_QUEUE);
+  sem_unlink(SEM_CLIENT_SERVER);
+  sem_unlink(SEM_SERVER_QUEUE);
+  sem_unlink(SEM_SERVER_LOCK);
+
+  /* destroy shared memory */
+  if (shmctl(shmid, IPC_RMID, (struct shmid_ds *)0) < 0) {
+    perror("semctl");
+    exit(EXIT_FAILURE);
+  }
+  printf("Releasing shared segment: %d\n", shmid);
 }

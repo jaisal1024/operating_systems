@@ -1,10 +1,8 @@
 #!/bin/bash
 
-ME= 'jpf'
-
-IPCS_S=`ipcs -s |grep $ME | awk '{print $2}'`
-IPCS_M=`ipcs -m |grep $ME | awk '{print $2}'`
-IPCS_Q=`ipcs -q |grep $ME | awk '{print $2}'`
+IPCS_S=`ipcs -s |grep 'jpf' | awk '{print $2}'`
+IPCS_M=`ipcs -m |grep 'jpf' | awk '{print $2}'`
+IPCS_Q=`ipcs -q |grep 'jpf' | awk '{print $2}'`
 
 for id in $IPCS_M; do
   ipcrm -m $id;

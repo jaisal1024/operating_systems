@@ -3,10 +3,8 @@
 
 #include <semaphore.h>
 
-#define SEGMENT_SIZE 2048
 #define MAX_INPUT_SIZE 200
 #define DESCR_SIZE 100
-#define INIT_CLIENTS_SERVED 0
 #define MAX_CLIENTS 20
 #define MAX_QUEUE 10
 #define SUCCESS 1
@@ -19,9 +17,16 @@
 #define MENU_SIZE 10
 #define RW_ACCESS 0666
 
-extern const char *SEM_CASHIER;
-extern const char *SEM_CLIENT;
-extern const char *SEM_LOCK;
+extern const char *SEM_MANAGER_LOCK;
+extern const char *SEM_CASHIER_QUEUE;
+extern const char *SEM_CASHIER_LOCK;
+extern const char *SEM_CLIENT_CASHIER;
+extern const char *SEM_CLIENT_QUEUE;
+extern const char *SEM_CLIENT_SERVER;
+extern const char *SEM_SERVER_QUEUE;
+extern const char *SEM_SERVER_LOCK;
+
+extern const char *database_dir;
 
 typedef struct {
   int item_id;
@@ -34,20 +39,40 @@ typedef struct {
 
 typedef struct {
   int client_id;
-  double time_waiting;
-  double time_in_shop;
+  int item_id;
+  int cashier_time;
+  int server_time;
+  int eat_time;
   double bill;
 } client;
 
 typedef struct {
+  sem_t *manager_lock;
+  sem_t *cashier_queue;
+  sem_t *cashier_lock;
+  sem_t *client_cashier;
+  sem_t *client_queue;
+  sem_t *client_server;
+  sem_t *server_queue;
+  sem_t *server_lock;
+} semaphores;
+
+typedef struct {
+  int client;
+  int cashier;
+  int server;
+} counters;
+
+typedef struct {
   menu_item menu[MENU_SIZE];
-  sem_t *sem_cashiers;
-  sem_t *sem_binary_locking;
-  sem_t *sem_clients;
+  semaphores semaphores_;
   client clients[MAX_CLIENTS];
+  counters counters_;
 } shared_mem;
 
-extern shared_mem *attach_shared_mem_and_open_sem(int shmid);
-extern void detach_shared_mem_and_close_sem(shared_mem *, int shmid);
+extern shared_mem *attach_shared_mem(int);
+extern void detach_shared_mem(shared_mem *, int);
+extern void detach_shared_mem_and_close_all_sem(shared_mem *, int);
+extern int randomize_n(int);
 
 #endif // FUNC_H_

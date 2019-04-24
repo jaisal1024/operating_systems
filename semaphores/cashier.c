@@ -11,10 +11,14 @@
 #include <sys/shm.h>
 #include <unistd.h>
 
+static void close_cashier(shared_mem *, int);
+static void dump_to_database(shared_mem *, int, int);
+
 int main(int argc, char **argv) {
   // INIT VARS
-  int service_time, break_time, shmid, i, parameters = 0;
+  int service_time, break_time, shmid, i, parameters = 0, clients_left = 0;
   shared_mem *shared_mem_;
+  srand(1);
 
   // READ ARGV INPUTS
   for (i = 1; i < argc - 1; i++) {
@@ -51,12 +55,103 @@ int main(int argc, char **argv) {
   }
 
   // OPEN SHARED MEM AND SEMAPHORES
-  shared_mem_ = attach_shared_mem_and_open_sem(shmid);
+  shared_mem_ = attach_shared_mem(shmid);
 
-  if (sem_post(shared_mem_->sem_cashiers) == -1)
-    perror("sem_post failed");
+  // OPEN SEMAPHORES
+  shared_mem_->semaphores_.cashier_queue = sem_open(SEM_CASHIER_QUEUE, 0);
+  shared_mem_->semaphores_.cashier_lock = sem_open(SEM_CASHIER_LOCK, 0);
+  shared_mem_->semaphores_.client_cashier = sem_open(SEM_CLIENT_CASHIER, 0);
+  shared_mem_->semaphores_.client_queue = sem_open(SEM_CLIENT_QUEUE, 0);
+
+  // CHECK-IN : DECREMENT CASHIERS COUNTER IF NOT FULL
+  if (sem_wait(shared_mem_->semaphores_.cashier_lock) == -1) { // acquire lock
+    perror("sem_t CASHIER_LOCK wait failed");
+    close_cashier(shared_mem_, shmid);
+  }
+  if (shared_mem_->counters_.cashier > 0) {
+    shared_mem_->counters_.cashier--;
+    clients_left = shared_mem_->counters_.client;
+  } else {
+    close_cashier(shared_mem_, shmid);
+  }
+  if (sem_post(shared_mem_->semaphores_.cashier_lock) == -1) { // release lock
+    perror("sem_t CASHIER_LOCK post failed");
+    close_cashier(shared_mem_, shmid);
+  }
+
+  while (clients_left > 0) {
+    if (sem_wait(shared_mem_->semaphores_.cashier_lock) == -1) { // acquire lock
+      perror("sem_t CASHIER_LOCK wait in loop failed");
+      close_cashier(shared_mem_, shmid);
+    }
+    if (sem_trywait(shared_mem_->semaphores_.client_queue) == -1) {
+      if (errno == EAGAIN) {
+        // TAKE A BREAK, no one in client queue
+        sleep(break_time);
+        continue;
+      } else {
+        perror("sem_t CLIENT_QUEUE trywait failed");
+        close_cashier(shared_mem_, shmid);
+      }
+    } else { // FOUND A WAITING CLIENT
+      if (sem_post(shared_mem_->semaphores_.cashier_queue) == -1) {
+        perror("sem_t CASHIER_QUEUE post failed");
+        close_cashier(shared_mem_, shmid);
+      }
+      // TAKING ORDER -- SERVICE TIME
+      int this_service_time = randomize_n(service_time);
+      int cur_client = MAX_CLIENTS - shared_mem_->counters_.client;
+      shared_mem_->clients[cur_client].cashier_time = this_service_time;
+      // WAIT TILL CLIENT ADDS ORDER
+      if (sem_wait(shared_mem_->semaphores_.client_cashier) == -1) {
+        perror("sem_t CLIENT_CASHIER wait in loop failed");
+        close_cashier(shared_mem_, shmid);
+      }
+      if (sem_post(shared_mem_->semaphores_.cashier_lock) ==
+          -1) { // release lock
+        perror("sem_t CASHIER_LOCK post in loop failed");
+        close_cashier(shared_mem_, shmid);
+      }
+      printf("Cashier serving client %d (%d) in... %ds",
+             shared_mem_->clients[cur_client].client_id, cur_client,
+             this_service_time);
+      sleep(this_service_time);
+      int order = shared_mem_->clients[i].item_id;
+      shared_mem_->menu[order].quantity++;
+      dump_to_database(shared_mem_, cur_client, order);
+    }
+  }
 
   // DETACH SHARED MEM AND CLOSE SEMAPHORES
-  detach_shared_mem_and_close_sem(shared_mem_, shmid);
+  detach_shared_mem(shared_mem_, shmid);
+  sem_close(shared_mem_->semaphores_.cashier_queue);
+  sem_close(shared_mem_->semaphores_.cashier_lock);
+  sem_close(shared_mem_->semaphores_.client_cashier);
+  sem_close(shared_mem_->semaphores_.client_queue);
+
   return EXIT_SUCCESS;
+}
+
+void close_cashier(shared_mem *shared_mem_, int shmid) {
+
+  detach_shared_mem(shared_mem_, shmid);
+  sem_close(shared_mem_->semaphores_.cashier_queue);
+  sem_close(shared_mem_->semaphores_.cashier_lock);
+  sem_close(shared_mem_->semaphores_.client_cashier);
+  sem_close(shared_mem_->semaphores_.client_queue);
+
+  exit(EXIT_FAILURE);
+}
+
+void dump_to_database(shared_mem *shared_mem_, int i, int order) {
+  FILE *fp;
+  fp = fopen(database_dir, "a");
+  if (fp == NULL) {
+    perror("Failed to Append Client Data to Database");
+  } else {
+    fprintf(fp, "%d-%d, %s, %f\n", i, shared_mem_->clients[i].client_id,
+            shared_mem_->menu[order].description,
+            shared_mem_->menu[order].price);
+  }
+  fclose(fp);
 }

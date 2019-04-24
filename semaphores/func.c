@@ -18,12 +18,14 @@ const char *SEM_CASHIER_LOCK = "/CASHIER_LOCK";
 const char *SEM_CLIENT_CASHIER = "/CLIENT_CASHIER";
 const char *SEM_CLIENT_QUEUE = "/CLIENT_QUEUE";
 const char *SEM_CLIENT_SERVER = "/CLIENT_SERVER";
+const char *SEM_CLIENT_LOCK = "/CLIENT_LOCK";
 const char *SEM_SERVER_QUEUE = "/SERVER_QUEUE";
 const char *SEM_SERVER_LOCK = "/SERVER_LOCK";
 
 const char *database_dir = "database.txt";
 
 extern int randomize_n(int max) { return rand() % max + 1; }
+extern int randomize_bt(int max, int min) { return rand() % max + min; }
 
 extern shared_mem *attach_shared_mem(int shmid) {
   shared_mem *shared_mem_;
@@ -52,6 +54,7 @@ extern void detach_shared_mem_and_close_all_sem(shared_mem *shared_mem_,
   sem_close(shared_mem_->semaphores_.cashier_lock);
   sem_close(shared_mem_->semaphores_.client_cashier);
   sem_close(shared_mem_->semaphores_.client_queue);
+  sem_close(shared_mem_->semaphores_.client_lock);
   sem_close(shared_mem_->semaphores_.client_server);
   sem_close(shared_mem_->semaphores_.server_queue);
   sem_close(shared_mem_->semaphores_.server_lock);
@@ -66,6 +69,7 @@ extern void detach_shared_mem_and_close_all_sem(shared_mem *shared_mem_,
   sem_unlink(SEM_CASHIER_LOCK);
   sem_unlink(SEM_CLIENT_CASHIER);
   sem_unlink(SEM_CLIENT_QUEUE);
+  sem_unlink(SEM_CLIENT_LOCK);
   sem_unlink(SEM_CLIENT_SERVER);
   sem_unlink(SEM_SERVER_QUEUE);
   sem_unlink(SEM_SERVER_LOCK);

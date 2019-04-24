@@ -5,8 +5,8 @@
 
 #define MAX_INPUT_SIZE 200
 #define DESCR_SIZE 100
-#define MAX_CLIENTS 20
-#define MAX_QUEUE 10
+#define MAX_CLIENTS 2
+#define MAX_QUEUE 1
 #define SUCCESS 1
 #define FAILURE 0
 #define ITEM_ID 0
@@ -22,6 +22,7 @@ extern const char *SEM_CASHIER_QUEUE;
 extern const char *SEM_CASHIER_LOCK;
 extern const char *SEM_CLIENT_CASHIER;
 extern const char *SEM_CLIENT_QUEUE;
+extern const char *SEM_CLIENT_LOCK;
 extern const char *SEM_CLIENT_SERVER;
 extern const char *SEM_SERVER_QUEUE;
 extern const char *SEM_SERVER_LOCK;
@@ -41,8 +42,11 @@ typedef struct {
   int client_id;
   int item_id;
   int cashier_time;
+  int food_time;
   int server_time;
   int eat_time;
+  double arrival_time;
+  double depart_time;
   double bill;
 } client;
 
@@ -53,6 +57,7 @@ typedef struct {
   sem_t *client_cashier;
   sem_t *client_queue;
   sem_t *client_server;
+  sem_t *client_lock;
   sem_t *server_queue;
   sem_t *server_lock;
 } semaphores;
@@ -60,7 +65,9 @@ typedef struct {
 typedef struct {
   int client;
   int cashier;
+  int max_cashier;
   int server;
+  int client_queue;
 } counters;
 
 typedef struct {
@@ -74,5 +81,6 @@ extern shared_mem *attach_shared_mem(int);
 extern void detach_shared_mem(shared_mem *, int);
 extern void detach_shared_mem_and_close_all_sem(shared_mem *, int);
 extern int randomize_n(int);
+extern int randomize_bt(int, int);
 
 #endif // FUNC_H_

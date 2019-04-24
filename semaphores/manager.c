@@ -17,16 +17,19 @@ extern char *tzname[2];
 int main(int argc, char **argv) {
   // INITIALIZE VARS
   int shm_id, i, max_num_cashiers, parameters = FAILURE, menu_index = 0,
-                                   avg_waiting_time, no_of_clients_served;
+                                   avg_waiting_time, no_of_clients_served,
+                                   revenue, avg_time_in_shop;
   time_t time_;
+  time(&time_);
   srand(1);
-  FILE *fp;
+  FILE *fp, fp_out;
   char *ln = NULL;
   size_t cap = MAX_INPUT_SIZE;
   ssize_t ln_size;
   const char *delim = ",";
   char *token;
   const char *menu_dir = "menu.txt";
+  const char *output_dir = "daily_stats";
   shared_mem *shared_mem_;
 
   // READ ARGV INPUTS
@@ -61,8 +64,10 @@ int main(int argc, char **argv) {
 
   // SET CLIENT_COUNT to 0
   shared_mem_->counters_.client = MAX_CLIENTS;
+  shared_mem_->counters_.client_queue = MAX_QUEUE;
   shared_mem_->counters_.server = 1;
   shared_mem_->counters_.cashier = max_num_cashiers;
+  shared_mem_->counters_.max_cashier = max_num_cashiers;
 
   // CREATE STRUCT, READ MENU
   fp = fopen(menu_dir, "r");
@@ -100,6 +105,7 @@ int main(int argc, char **argv) {
     shared_mem_->menu[menu_index].quantity = 0;
     menu_index++;
   }
+  printf("Menu loaded from ~/%s\n", menu_dir);
   fclose(fp);
 
   // INIT SEMAPHORES
@@ -138,6 +144,13 @@ int main(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
 
+  shared_mem_->semaphores_.client_lock =
+      sem_open(SEM_CLIENT_LOCK, O_CREAT, RW_ACCESS, 1);
+  if (shared_mem_->semaphores_.client_lock == SEM_FAILED) {
+    perror("Sem_t CLIENT LOCK Open Failed");
+    exit(EXIT_FAILURE);
+  }
+
   shared_mem_->semaphores_.client_server =
       sem_open(SEM_CLIENT_SERVER, O_CREAT, RW_ACCESS, 0);
   if (shared_mem_->semaphores_.client_server == SEM_FAILED) {
@@ -165,10 +178,11 @@ int main(int argc, char **argv) {
     perror("Database Failed to Open");
   } else {
     // print time of day in ASCII
-    time(&time_);
     fprintf(fp, "%s", ctime(&time_));
   }
   fclose(fp);
+
+  printf("The Restaurant is now open at: %s", ctime(&time_));
 
   // PUT TO SLEEP TILL WOKEN UP
   if (sem_wait(shared_mem_->semaphores_.manager_lock) == -1) {
@@ -179,7 +193,39 @@ int main(int argc, char **argv) {
 
   // COMPILE & PRINT STATS
   avg_waiting_time = 0;
+  avg_time_in_shop = 0;
   no_of_clients_served = 0;
+  revenue = 0;
+  // OUPUT TO DATABASE && OUPUT FILE
+  fp_out = fopen(output_dir, "w");
+  if (fp_out == NULL) {
+    perror("Daily outputs file Failed to Open");
+  } else {
+    int wait_time, spending, time_in_shop;
+    for (i = 0; i < MAX_CLIENTS - shared_mem_->counters_.client; i++) {
+      time_in_shop = shared_mem_->clients[i].depart_time -
+                     shared_mem_->clients[i].arrival_time;
+      wait_time = shared_mem_->clients[i].cashier_time + clients[i].food_time +
+                  clients[i].server_time;
+      spending = shared_mem_->clients[i].bill;
+
+      fprintf(
+          fp_out, "Client %d spent %fs in the shop waited %ds and spent $%f\n",
+          shared_mem_->clients[i].client_id, time_in_shop, wait_time, spending);
+      no_of_clients_served++;
+      avg_time_in_shop += time_in_shop;
+      avg_waiting_time += wait_time;
+      revenue += spending;
+    }
+    avg_time_in_shop /= no_of_clients_served;
+    avg_waiting_time /= no_of_clients_served;
+    fprintf(fp, "Avg. Waiting Time: %d\n", avg_waiting_time);
+    fprintf(fp, "Avg. Time in the Shop: %d\n", avg_time_in_shop);
+
+    fprintf(fp, "No. of Clients Served: %d\n", no_of_clients_served);
+    fprintf(fp, "Total Revenue: %d\n", revenue);
+  }
+  fclose(fp_out);
 
   // print statistics of the day
   fp = fopen(database_dir, "a");
@@ -187,7 +233,9 @@ int main(int argc, char **argv) {
     perror("Database Failed to Open");
   } else {
     fprintf(fp, "Avg. Waiting Time: %d\n", avg_waiting_time);
-    fprintf(fp, "No. of Clients Served: %d\n\n", no_of_clients_served);
+    fprintf(fp, "Avg. Time in the Shop: %d\n", avg_time_in_shop);
+    fprintf(fp, "No. of Clients Served: %d\n", no_of_clients_served);
+    fprintf(fp, "Total Revenue: %d\n", revenue);
   }
   fclose(fp);
 

@@ -7,6 +7,7 @@
 #define DESCR_SIZE 100
 #define MAX_CLIENTS 2
 #define MAX_QUEUE 1
+#define TIME_SERVER 10
 #define SUCCESS 1
 #define FAILURE 0
 #define ITEM_ID 0

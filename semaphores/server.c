@@ -10,9 +10,12 @@
 #include <sys/shm.h>
 #include <unistd.h>
 
+static void close_server(shared_mem *, int);
+
 int main(int argc, char **argv) {
   // INIT VARS
-  int i, shmid, parameters = 0;
+  int i, shmid, parameters = 0, clients_left = 0;
+  shared_mem *shared_mem_;
 
   // READ ARGV INPUTS
   for (i = 1; i < argc - 1; i++) {
@@ -33,5 +36,62 @@ int main(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
 
+  // OPEN SHARED MEM AND SEMAPHORES
+  shared_mem_ = attach_shared_mem(shmid);
+
+  // OPEN SEMAPHORES
+  shared_mem_->semaphores_.server_queue = sem_open(SEM_SERVER_QUEUE, 0);
+  shared_mem_->semaphores_.server_lock = sem_open(SEM_SERVER_LOCK, 0);
+  shared_mem_->semaphores_.client_server = sem_open(SEM_CLIENT_SERVER, 0);
+
+  // CHECK-IN : DECREMENT SERVER COUNTER IF NOT FULL
+  if (sem_wait(shared_mem_->semaphores_.server_lock) == -1) { // acquire lock
+    perror("sem_t SERVER_LOCK wait failed");
+    close_server(shared_mem_, shmid);
+  }
+  if (shared_mem_->counters_.server > 0) {
+    shared_mem_->counters_.server--;
+    clients_left = shared_mem_->counters_.client;
+  } else {
+    fprintf(stderr, "Server already on the job\n");
+    close_server(shared_mem_, shmid);
+  }
+  if (sem_post(shared_mem_->semaphores_.server_lock) == -1) { // release lock
+    perror("sem_t SERVER_LOCK post failed");
+    close_server(shared_mem_, shmid);
+  }
+
+  while (clients_left < MAX_CLIENTS) {
+    // WAIT FOR A DELIVERY
+    if (sem_wait(shared_mem_->semaphores_.server_queue) == -1) {
+      perror("sem_t SERVER_QUEUE wait failed");
+      close_server(shared_mem_, shmid);
+    }
+    int service_time = randomize_n(TIME_SERVER);
+    // ADD service_time TO SHARED_MEM
+    sleep(service_time);
+    // SIGNAL THE FOOD HAS BEEN SERVED
+    if (sem_post(shared_mem_->semaphores_.client_server) == -1) {
+      perror("sem_t SERVER_LOCK post failed");
+      close_server(shared_mem_, shmid);
+    }
+  }
+
+  // DETACH MEM AND CLOSE SEM
+  detach_shared_mem(shared_mem_, shmid);
+  sem_close(shared_mem_->semaphores_.server_queue);
+  sem_close(shared_mem_->semaphores_.server_lock);
+  sem_close(shared_mem_->semaphores_.client_server);
+
   return EXIT_SUCCESS;
+}
+
+void close_server(shared_mem *shared_mem_, int shmid) {
+
+  detach_shared_mem(shared_mem_, shmid);
+  sem_close(shared_mem_->semaphores_.server_queue);
+  sem_close(shared_mem_->semaphores_.server_lock);
+  sem_close(shared_mem_->semaphores_.client_server);
+
+  exit(EXIT_FAILURE);
 }

@@ -17,12 +17,13 @@ extern char *tzname[2];
 int main(int argc, char **argv) {
   // INITIALIZE VARS
   int shm_id, i, max_num_cashiers, parameters = FAILURE, menu_index = 0,
-                                   avg_waiting_time, no_of_clients_served,
-                                   revenue, avg_time_in_shop;
+                                   no_of_clients_served;
+
+  double avg_waiting_time, revenue, avg_time_in_shop;
   time_t time_;
   time(&time_);
   srand(1);
-  FILE *fp, fp_out;
+  FILE *fp, *fp_out;
   char *ln = NULL;
   size_t cap = MAX_INPUT_SIZE;
   ssize_t ln_size;
@@ -201,16 +202,17 @@ int main(int argc, char **argv) {
   if (fp_out == NULL) {
     perror("Daily outputs file Failed to Open");
   } else {
-    int wait_time, spending, time_in_shop;
+    double wait_time, spending, time_in_shop;
     for (i = 0; i < MAX_CLIENTS - shared_mem_->counters_.client; i++) {
       time_in_shop = shared_mem_->clients[i].depart_time -
                      shared_mem_->clients[i].arrival_time;
-      wait_time = shared_mem_->clients[i].cashier_time + clients[i].food_time +
-                  clients[i].server_time;
+      wait_time = shared_mem_->clients[i].cashier_time +
+                  shared_mem_->clients[i].food_time +
+                  shared_mem_->clients[i].server_time;
       spending = shared_mem_->clients[i].bill;
 
       fprintf(
-          fp_out, "Client %d spent %fs in the shop waited %ds and spent $%f\n",
+          fp_out, "Client %d spent %fs in the shop waited %fs and spent $%f\n",
           shared_mem_->clients[i].client_id, time_in_shop, wait_time, spending);
       no_of_clients_served++;
       avg_time_in_shop += time_in_shop;
@@ -219,11 +221,11 @@ int main(int argc, char **argv) {
     }
     avg_time_in_shop /= no_of_clients_served;
     avg_waiting_time /= no_of_clients_served;
-    fprintf(fp, "Avg. Waiting Time: %d\n", avg_waiting_time);
-    fprintf(fp, "Avg. Time in the Shop: %d\n", avg_time_in_shop);
+    fprintf(fp, "Avg. Waiting Time: %f\n", avg_waiting_time);
+    fprintf(fp, "Avg. Time in the Shop: %f\n", avg_time_in_shop);
 
     fprintf(fp, "No. of Clients Served: %d\n", no_of_clients_served);
-    fprintf(fp, "Total Revenue: %d\n", revenue);
+    fprintf(fp, "Total Revenue: %f\n", revenue);
   }
   fclose(fp_out);
 
@@ -232,10 +234,10 @@ int main(int argc, char **argv) {
   if (fp == NULL) {
     perror("Database Failed to Open");
   } else {
-    fprintf(fp, "Avg. Waiting Time: %d\n", avg_waiting_time);
-    fprintf(fp, "Avg. Time in the Shop: %d\n", avg_time_in_shop);
+    fprintf(fp, "Avg. Waiting Time: %f\n", avg_waiting_time);
+    fprintf(fp, "Avg. Time in the Shop: %f\n", avg_time_in_shop);
     fprintf(fp, "No. of Clients Served: %d\n", no_of_clients_served);
-    fprintf(fp, "Total Revenue: %d\n", revenue);
+    fprintf(fp, "Total Revenue: %f\n", revenue);
   }
   fclose(fp);
 

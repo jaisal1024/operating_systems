@@ -1,5 +1,6 @@
 CC=gcc
 CFLAGS = -Wall -g
+PTHD = -pthread
 
 OBJS_m = manager.o common.o func.o
 OBJS_cash = cashier.o common.o func.o
@@ -10,22 +11,22 @@ all:  manager cashier server client
 
 .PHONY: manager
 manager: $(OBJS_m)
-	$(CC) -o manager $(OBJS_m)
+	$(CC) $(CFLAGS) -o manager $(OBJS_m) $(PTHD)
 manager: common.h func.h
 
 .PHONY: cashier
 cashier: $(OBJS_cash)
-	$(CC) -o cashier $(OBJS_cash)
+	$(CC) $(CFLAGS) -o cashier $(OBJS_cash) $(PTHD)
 cashier: common.h func.h
 
 .PHONY: server
 server: $(OBJS_serv)
-	$(CC) -o server $(OBJS_serv)
+	$(CC) $(CFLAGS) -o server $(OBJS_serv) $(PTHD)
 server: common.h func.h
 
 .PHONY: client
 client: $(OBJS_client)
-	$(CC) -o client $(OBJS_client)
+	$(CC)  $(CFLAGS) -o client $(OBJS_client) $(PTHD)
 client: common.h func.h
 
 .PHONY: clean

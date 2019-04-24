@@ -61,6 +61,7 @@ int main(int argc, char **argv) {
 
   // OPEN SEMAPHORES
   shared_mem_->semaphores_.client_cashier = sem_open(SEM_CLIENT_CASHIER, 0);
+  shared_mem_->semaphores_.cashier_queue = sem_open(SEM_CASHIER_QUEUE, 0);
   shared_mem_->semaphores_.client_queue = sem_open(SEM_CLIENT_QUEUE, 0);
   shared_mem_->semaphores_.client_lock = sem_open(SEM_CLIENT_LOCK, 0);
   shared_mem_->semaphores_.server_queue = sem_open(SEM_SERVER_QUEUE, 0);
@@ -82,8 +83,8 @@ int main(int argc, char **argv) {
     close_client(shared_mem_, shmid);
   }
   // start arrival time when client enters the queue
-
   time(&arr_time);
+
   // SIGNAL CLIENT QUEUE
   if (sem_post(shared_mem_->semaphores_.client_queue) == -1) {
     perror("sem_t CLIENT_QUEUE post failed");
@@ -92,7 +93,7 @@ int main(int argc, char **argv) {
   printf("Client %d has entered the queue\n", pid);
 
   // WAIT FOR CASHIER QUEUE
-  if (sem_wait(shared_mem_->semaphores_.cashier_queue) == -1) { // acquire lock
+  if (sem_wait(shared_mem_->semaphores_.cashier_queue) == -1) {
     perror("sem_t CASHIER_QUEUE wait failed");
     close_client(shared_mem_, shmid);
   }
@@ -157,6 +158,7 @@ int main(int argc, char **argv) {
   detach_shared_mem(shared_mem_, shmid);
   sem_close(shared_mem_->semaphores_.client_queue);
   sem_close(shared_mem_->semaphores_.client_cashier);
+  sem_close(shared_mem_->semaphores_.cashier_queue);
   sem_close(shared_mem_->semaphores_.server_queue);
   sem_close(shared_mem_->semaphores_.client_server);
   sem_close(shared_mem_->semaphores_.client_lock);
@@ -170,6 +172,7 @@ void close_client(shared_mem *shared_mem_, int shmid) {
   detach_shared_mem(shared_mem_, shmid);
   sem_close(shared_mem_->semaphores_.client_queue);
   sem_close(shared_mem_->semaphores_.client_cashier);
+  sem_close(shared_mem_->semaphores_.cashier_queue);
   sem_close(shared_mem_->semaphores_.server_queue);
   sem_close(shared_mem_->semaphores_.client_server);
   sem_close(shared_mem_->semaphores_.client_lock);

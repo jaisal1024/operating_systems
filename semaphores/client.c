@@ -98,7 +98,8 @@ int main(int argc, char **argv) {
     perror("sem_t CLIENT_QUEUE post failed");
     close_client(shared_mem_, shmid, semaphores_);
   }
-  printf("Client %d has entered the cashier queue\n", pid);
+  printf("Client %d has entered the cashier queue at %s", pid,
+         ctime(&arr_time));
 
   // WAIT FOR CASHIER QUEUE
   VLOG(DEBUG, "WAITING IN CASHIER QUEUE");
@@ -130,7 +131,7 @@ int main(int argc, char **argv) {
 
   // WAIT TO BE SERVED BY CASHIER
   int cashier_time = shared_mem_->clients[cur_client].cashier_time;
-  printf("Cashier serving client %d (%d) in... %d s\n", cur_client, pid,
+  printf("Cashier serving client %d (%d) in... %ds\n", cur_client, pid,
          cashier_time);
   sleep(cashier_time);
 
@@ -138,7 +139,7 @@ int main(int argc, char **argv) {
   int food_time = randomize_bt(shared_mem_->menu[item_id].max_time,
                                shared_mem_->menu[item_id].min_time);
   shared_mem_->clients[cur_client].food_time = food_time;
-  printf("Food will be ready in... %d s\n", food_time);
+  printf("Food will be ready in... %ds\n", food_time);
   sleep(food_time);
 
   // JOIN SERVER QUEUE
@@ -155,7 +156,7 @@ int main(int argc, char **argv) {
   shared_mem_->clients[cur_client].server_time = shared_mem_->server_time;
   shared_mem_->server_time = 0;
   // SLEEP FOR EAT TIME THEN EXIT
-  printf("Client %d (%d) is eating for %d s\n", cur_client, pid, eat_time);
+  printf("Client %d (%d) is eating for %ds\n", cur_client, pid, eat_time);
   sleep(eat_time);
 
   // CHECK IF THE LAST CLIENT
@@ -170,7 +171,7 @@ int main(int argc, char **argv) {
   shared_mem_->clients[cur_client].depart_time = (double)dep_time;
 
   // SAY GOODBYE
-  printf("Goodbye Client %d (%d)\n", cur_client, pid);
+  printf("Goodbye Client %d (%d) at %s", cur_client, pid, ctime(&dep_time));
 
   // CLOSE AND DETACH MEMORY
   sem_close(semaphores_.client_queue);

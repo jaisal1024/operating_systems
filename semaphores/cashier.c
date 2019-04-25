@@ -97,7 +97,7 @@ int main(int argc, char **argv) {
     if (sem_trywait(semaphores_.client_queue) == -1) {
       if (errno == EAGAIN) {
         // TAKE A BREAK, no one in client queue
-        printf("Cashier is breaking for... %d s\n", break_time);
+        printf("Cashier is breaking for... %ds\n", break_time);
         if (sem_post(semaphores_.cashier_lock) == -1) { // release lock
           perror("sem_t CASHIER_LOCK post failed");
           close_cashier(shared_mem_, shmid, semaphores_);
@@ -134,7 +134,7 @@ int main(int argc, char **argv) {
         perror("sem_t CASHIER_LOCK post failed");
         close_cashier(shared_mem_, shmid, semaphores_);
       }
-      printf("Cashier serving client %d (%d) in... %d s\n", cur_client,
+      printf("Cashier serving client %d (%d) in... %ds\n", cur_client,
              shared_mem_->clients[cur_client].client_id, this_service_time);
       sleep(this_service_time);
       int order = shared_mem_->clients[cur_client].item_id;

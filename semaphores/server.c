@@ -78,7 +78,7 @@ int main(int argc, char **argv) {
     int cur_client = MAX_CLIENTS - clients_left;
     int server_time = randomize_n(TIME_SERVER);
     shared_mem_->server_time = server_time;
-    printf("Server serving client %d (%d) in... %d s\n", cur_client,
+    printf("Server serving client %d (%d) in... %ds\n", cur_client,
            shared_mem_->clients[cur_client].client_id, server_time);
     sleep(server_time);
     // SIGNAL THE FOOD HAS BEEN SERVED

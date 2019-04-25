@@ -44,6 +44,6 @@ clean:
 	rm -f del_sems.o
 	rm -f database.txt
 	touch database.txt
-	rm -f daily_stats
+	rm -f daily_stats.txt
 	rm -f *.gch
 	rm -f a.out

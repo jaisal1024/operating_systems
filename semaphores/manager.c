@@ -24,7 +24,7 @@ int main(int argc, char **argv) {
 
   double avg_waiting_time, revenue, avg_time_in_shop;
   semaphores semaphores_;
-  time_t time_;
+  time_t time_, close_time_;
   time(&time_);
   srand(1);
   FILE *fp, *fp_out;
@@ -34,7 +34,7 @@ int main(int argc, char **argv) {
   const char *delim = ",";
   char *token;
   const char *menu_dir = "menu.txt";
-  const char *output_dir = "daily_stats";
+  const char *output_dir = "daily_stats.txt";
   shared_mem *shared_mem_;
 
   // READ ARGV INPUTS
@@ -199,7 +199,8 @@ int main(int argc, char **argv) {
     detach_shared_mem_and_close_all_sem(shared_mem_, shm_id, semaphores_);
     exit(EXIT_FAILURE);
   }
-
+  time(&close_time_);
+  printf("The Restaurant is now closed at: %s", ctime(&close_time_));
   printf("Processing the days stats...\n");
   // COMPILE & PRINT STATS
   avg_waiting_time = 0;
@@ -239,7 +240,7 @@ int main(int argc, char **argv) {
     for (i = 0; i < 5; i++) {
       if (shared_mem_->menu[top_5[i]].quantity > 0) {
         VLOG(DEBUG, "top_5: %d", top_5[i]);
-        fprintf(fp, "%s : $ %f\n", shared_mem_->menu[top_5[i]].description,
+        fprintf(fp, "%s : $%f\n", shared_mem_->menu[top_5[i]].description,
                 shared_mem_->menu[top_5[i]].price *
                     shared_mem_->menu[top_5[i]].quantity);
       }
@@ -261,12 +262,12 @@ int main(int argc, char **argv) {
     fprintf(fp, "Total Revenue: $%f\n", revenue);
   }
   fclose(fp);
-  printf("Updated database and daily stats available at database.txt and "
-         "daily_stats\n");
+  printf("Daily stats and updated database available at daily_stats.txt and "
+         "database.txt\n");
 
   // GRACEFULLY EXIT
   detach_shared_mem_and_close_all_sem(shared_mem_, shm_id, semaphores_);
-  printf("See you tomorrow! \n");
+  printf("See you tomorrow!\n");
 
   return EXIT_SUCCESS;
 }

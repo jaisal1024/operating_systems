@@ -35,6 +35,8 @@ del_sems: del_sems.o
 
 .PHONY: clean
 clean:
+	./del_sems
+	sh kill_ipcs.sh
 	rm -f $(OBJS_m) manager
 	rm -f $(OBJS_cash) cashier
 	rm -f $(OBJS_serv) server

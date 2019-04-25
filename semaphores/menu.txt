@@ -1,4 +1,4 @@
-1, BBQ-Tempe-Salad, 8.95, 8, 12
+1, BBQ-Tempe-Salad, 8.95, 5, 10
 2, Spinach-Power, 9.15, 5, 8
 3, Garden-Salad, 4.75, 3, 9
 4, Seitan-Blue_Cheese, 7.25, 1, 10

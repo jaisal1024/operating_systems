@@ -200,6 +200,7 @@ int main(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
 
+  printf("Processing the days stats...\n");
   // COMPILE & PRINT STATS
   avg_waiting_time = 0;
   avg_time_in_shop = 0;
@@ -219,10 +220,9 @@ int main(int argc, char **argv) {
                   shared_mem_->clients[i].server_time;
       spending = shared_mem_->clients[i].bill;
 
-      fprintf(fp_out,
-              "Client %d spent %f s in the shop waited %f s and spent $ %f\n",
-              shared_mem_->clients[i].client_id, time_in_shop, wait_time,
-              spending);
+      fprintf(
+          fp_out, "Client %d spent %fs in the shop waited %fs and spent $%f\n",
+          shared_mem_->clients[i].client_id, time_in_shop, wait_time, spending);
       no_of_clients_served++;
       avg_time_in_shop += time_in_shop;
       avg_waiting_time += wait_time;
@@ -230,8 +230,8 @@ int main(int argc, char **argv) {
     }
     avg_time_in_shop /= no_of_clients_served;
     avg_waiting_time /= no_of_clients_served;
-    fprintf(fp, "Avg. Waiting Time: %f s\n", avg_waiting_time);
-    fprintf(fp, "Avg. Time in the Shop: %f s\n", avg_time_in_shop);
+    fprintf(fp, "Avg. Waiting Time: %fs\n", avg_waiting_time);
+    fprintf(fp, "Avg. Time in the Shop: %fs\n", avg_time_in_shop);
 
     fprintf(fp, "Top 5 Menu Sales\n");
     int top_5[5] = {0, 1, 2, 3, 4};
@@ -246,7 +246,7 @@ int main(int argc, char **argv) {
     }
 
     fprintf(fp, "No. of Clients Served: %d\n", no_of_clients_served);
-    fprintf(fp, "Total Revenue: $ %f\n", revenue);
+    fprintf(fp, "Total Revenue: $%f\n", revenue);
   }
   fclose(fp_out);
 
@@ -255,12 +255,14 @@ int main(int argc, char **argv) {
   if (fp == NULL) {
     perror("Database Failed to Open");
   } else {
-    fprintf(fp, "Avg. Waiting Time: %f\n", avg_waiting_time);
-    fprintf(fp, "Avg. Time in the Shop: %f\n", avg_time_in_shop);
+    fprintf(fp, "Avg. Waiting Time: %fs\n", avg_waiting_time);
+    fprintf(fp, "Avg. Time in the Shop: %fs\n", avg_time_in_shop);
     fprintf(fp, "No. of Clients Served: %d\n", no_of_clients_served);
-    fprintf(fp, "Total Revenue: %f\n", revenue);
+    fprintf(fp, "Total Revenue: $%f\n", revenue);
   }
   fclose(fp);
+  printf("Updated database and daily stats available at database.txt and "
+         "daily_stats\n");
 
   // GRACEFULLY EXIT
   detach_shared_mem_and_close_all_sem(shared_mem_, shm_id, semaphores_);

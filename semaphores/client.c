@@ -130,7 +130,7 @@ int main(int argc, char **argv) {
 
   // WAIT TO BE SERVED BY CASHIER
   int cashier_time = shared_mem_->clients[cur_client].cashier_time;
-  printf("Cashier serving client %d (%d) in... %d s\n", pid, cur_client,
+  printf("Cashier serving client %d (%d) in... %d s\n", cur_client, pid,
          cashier_time);
   sleep(cashier_time);
 
@@ -169,6 +169,9 @@ int main(int argc, char **argv) {
   time(&dep_time);
   shared_mem_->clients[cur_client].depart_time = (double)dep_time;
 
+  // SAY GOODBYE
+  printf("Goodbye Client %d (%d)\n", cur_client, pid);
+
   // CLOSE AND DETACH MEMORY
   sem_close(semaphores_.client_queue);
   sem_close(semaphores_.client_cashier);
@@ -178,8 +181,6 @@ int main(int argc, char **argv) {
   sem_close(semaphores_.client_lock);
 
   detach_shared_mem(shared_mem_, shmid);
-
-  printf("Goodbye client - %d (%d)\n", cur_client, pid);
 
   return EXIT_SUCCESS;
 }

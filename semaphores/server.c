@@ -66,6 +66,7 @@ int main(int argc, char **argv) {
     close_server(shared_mem_, shmid, semaphores_);
   }
   clients_left = MAX_CLIENTS;
+  printf("Server (%d) is now serving clients\n", getpid());
 
   while (clients_left > 0) {
     // WAIT FOR A DELIVERY
@@ -77,7 +78,8 @@ int main(int argc, char **argv) {
     int cur_client = MAX_CLIENTS - clients_left;
     int server_time = randomize_n(TIME_SERVER);
     shared_mem_->server_time = server_time;
-    printf("Server serving client %d in... %d s\n", cur_client, server_time);
+    printf("Server serving client %d (%d) in... %d s\n", cur_client,
+           shared_mem_->clients[cur_client].client_id, server_time);
     sleep(server_time);
     // SIGNAL THE FOOD HAS BEEN SERVED
     if (sem_post(semaphores_.client_server) == -1) {
@@ -85,6 +87,17 @@ int main(int argc, char **argv) {
       close_server(shared_mem_, shmid, semaphores_);
     }
     clients_left--;
+  }
+
+  // INCREMENT SERVER COUNTER UPON EXIT
+  if (sem_wait(semaphores_.server_lock) == -1) { // acquire lock
+    perror("sem_t SERVER_LOCK wait failed");
+    close_server(shared_mem_, shmid, semaphores_);
+  }
+  shared_mem_->counters_.server++;
+  if (sem_post(semaphores_.server_lock) == -1) { // release lock
+    perror("sem_t SERVER_LOCK post failed");
+    close_server(shared_mem_, shmid, semaphores_);
   }
 
   // DETACH MEM AND CLOSE SEM

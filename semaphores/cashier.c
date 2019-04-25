@@ -16,7 +16,8 @@ static void dump_to_database(shared_mem *, int, int);
 
 int main(int argc, char **argv) {
   // INIT VARS
-  int service_time, break_time, shmid, i, parameters = 0, clients_left = 0;
+  int service_time, break_time, shmid, i, parameters = 0, clients_left = 0,
+                                          pid = getpid(), cashier_num;
   shared_mem *shared_mem_;
   semaphores semaphores_;
   srand(1);
@@ -71,8 +72,10 @@ int main(int argc, char **argv) {
   }
   if (shared_mem_->counters_.cashier > 0) {
     clients_left = shared_mem_->counters_.client;
+    cashier_num = shared_mem_->counters_.cashier;
     --shared_mem_->counters_.cashier;
-    printf("Cashier %d is now serving clients\n", MAX_CLIENTS - clients_left);
+    printf("Cashier %d (%d) is now serving clients\n",
+           shared_mem_->counters_.max_cashier - cashier_num, pid);
   } else {
     if (sem_post(semaphores_.cashier_lock) == -1) { // release lock
       perror("sem_t CASHIER_LOCK post failed");
@@ -92,7 +95,6 @@ int main(int argc, char **argv) {
       close_cashier(shared_mem_, shmid, semaphores_);
     }
     if (sem_trywait(semaphores_.client_queue) == -1) {
-      VLOG(DEBUG, "%s", strerror(errno));
       if (errno == EAGAIN) {
         // TAKE A BREAK, no one in client queue
         printf("Cashier is breaking for... %d s\n", break_time);
@@ -132,18 +134,19 @@ int main(int argc, char **argv) {
         perror("sem_t CASHIER_LOCK post failed");
         close_cashier(shared_mem_, shmid, semaphores_);
       }
-      printf("Cashier serving client %d (%d) in... %d s\n",
-             shared_mem_->clients[cur_client].client_id, cur_client,
-             this_service_time);
+      printf("Cashier serving client %d (%d) in... %d s\n", cur_client,
+             shared_mem_->clients[cur_client].client_id, this_service_time);
       sleep(this_service_time);
-      int order = shared_mem_->clients[i].item_id;
-      VLOG(DEBUG, "item_id: %d", order);
+      int order = shared_mem_->clients[cur_client].item_id;
       shared_mem_->menu[order].quantity++;
       dump_to_database(shared_mem_, cur_client, order);
     }
     clients_left = shared_mem_->counters_.client;
-    VLOG(DEBUG, "Clients Left: %d", clients_left);
   }
+
+  // SAY Goodbye
+  printf("Goodbye Cashier %d (%d)\n",
+         shared_mem_->counters_.max_cashier - cashier_num, pid);
 
   // DETACH SHARED MEM AND CLOSE SEMAPHORES
   sem_close(semaphores_.cashier_queue);
@@ -174,9 +177,9 @@ void dump_to_database(shared_mem *shared_mem_, int i, int order) {
   if (fp == NULL) {
     perror("Failed to Append Client Data to Database");
   } else {
-    fprintf(fp, "%d-%d, %s, %f\n", i, shared_mem_->clients[i].client_id,
-            shared_mem_->menu[order].description,
-            shared_mem_->menu[order].price);
+    fprintf(
+        fp, "Client %d (%d), %s, $%f\n", i, shared_mem_->clients[i].client_id,
+        shared_mem_->menu[order].description, shared_mem_->menu[order].price);
   }
   fclose(fp);
 }

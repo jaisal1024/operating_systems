@@ -47,17 +47,18 @@ extern void detach_shared_mem(shared_mem *shared_mem_, int shmid) {
 }
 
 extern void detach_shared_mem_and_close_all_sem(shared_mem *shared_mem_,
-                                                int shmid) {
+                                                int shmid,
+                                                semaphores semaphores_) {
 
-  sem_close(shared_mem_->semaphores_.manager_lock);
-  sem_close(shared_mem_->semaphores_.cashier_queue);
-  sem_close(shared_mem_->semaphores_.cashier_lock);
-  sem_close(shared_mem_->semaphores_.client_cashier);
-  sem_close(shared_mem_->semaphores_.client_queue);
-  sem_close(shared_mem_->semaphores_.client_lock);
-  sem_close(shared_mem_->semaphores_.client_server);
-  sem_close(shared_mem_->semaphores_.server_queue);
-  sem_close(shared_mem_->semaphores_.server_lock);
+  sem_close(semaphores_.manager_lock);
+  sem_close(semaphores_.cashier_queue);
+  sem_close(semaphores_.cashier_lock);
+  sem_close(semaphores_.client_cashier);
+  sem_close(semaphores_.client_queue);
+  sem_close(semaphores_.client_lock);
+  sem_close(semaphores_.client_server);
+  sem_close(semaphores_.server_queue);
+  sem_close(semaphores_.server_lock);
 
   if (shmdt((void *)shared_mem_) == -1)
     perror("Shared Segment Detachment");

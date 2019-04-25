@@ -23,6 +23,7 @@ int main(int argc, char **argv) {
                                    no_of_clients_served;
 
   double avg_waiting_time, revenue, avg_time_in_shop;
+  semaphores semaphores_;
   time_t time_;
   time(&time_);
   srand(1);
@@ -115,65 +116,64 @@ int main(int argc, char **argv) {
   fclose(fp);
 
   // INIT SEMAPHORES
-  shared_mem_->semaphores_.manager_lock =
+  semaphores_.manager_lock =
       sem_open(SEM_MANAGER_LOCK, O_CREAT | O_EXCL, RW_ACCESS, 0);
-  if (shared_mem_->semaphores_.manager_lock == SEM_FAILED) {
+  if (semaphores_.manager_lock == SEM_FAILED) {
     perror("Sem_t MANAGER_LOCK Open Failed");
     exit(EXIT_FAILURE);
   }
 
-  shared_mem_->semaphores_.cashier_queue =
+  semaphores_.cashier_queue =
       sem_open(SEM_CASHIER_QUEUE, O_CREAT | O_EXCL, RW_ACCESS, 0);
-  if (shared_mem_->semaphores_.cashier_queue == SEM_FAILED) {
+  if (semaphores_.cashier_queue == SEM_FAILED) {
     perror("Sem_t CASHIER_QUEUE Open Failed");
     exit(EXIT_FAILURE);
   }
 
-  shared_mem_->semaphores_.cashier_lock =
+  semaphores_.cashier_lock =
       sem_open(SEM_CASHIER_LOCK, O_CREAT | O_EXCL, RW_ACCESS, 1);
-  if (shared_mem_->semaphores_.cashier_lock == SEM_FAILED) {
+  if (semaphores_.cashier_lock == SEM_FAILED) {
     perror("Sem_t CASHIER_LOCK Open Failed");
     exit(EXIT_FAILURE);
   }
 
-  shared_mem_->semaphores_.client_cashier =
+  semaphores_.client_cashier =
       sem_open(SEM_CLIENT_CASHIER, O_CREAT | O_EXCL, RW_ACCESS, 0);
-  if (shared_mem_->semaphores_.client_cashier == SEM_FAILED) {
+  if (semaphores_.client_cashier == SEM_FAILED) {
     perror("Sem_t CLIENT_CASHIER Open Failed");
     exit(EXIT_FAILURE);
   }
 
-  shared_mem_->semaphores_.client_queue =
+  semaphores_.client_queue =
       sem_open(SEM_CLIENT_QUEUE, O_CREAT | O_EXCL, RW_ACCESS, 0);
-  if (shared_mem_->semaphores_.client_queue == SEM_FAILED) {
+  if (semaphores_.client_queue == SEM_FAILED) {
     perror("Sem_t CLIENT_QUEUE Open Failed");
     exit(EXIT_FAILURE);
   }
 
-  shared_mem_->semaphores_.client_lock =
+  semaphores_.client_lock =
       sem_open(SEM_CLIENT_LOCK, O_CREAT | O_EXCL, RW_ACCESS, 1);
-  if (shared_mem_->semaphores_.client_lock == SEM_FAILED) {
+  if (semaphores_.client_lock == SEM_FAILED) {
     perror("Sem_t CLIENT LOCK Open Failed");
     exit(EXIT_FAILURE);
   }
 
-  shared_mem_->semaphores_.client_server =
+  semaphores_.client_server =
       sem_open(SEM_CLIENT_SERVER, O_CREAT | O_EXCL, RW_ACCESS, 0);
-  if (shared_mem_->semaphores_.client_server == SEM_FAILED) {
+  if (semaphores_.client_server == SEM_FAILED) {
     perror("Sem_t CLIENT_SERVER Open Failed");
     exit(EXIT_FAILURE);
   }
 
-  shared_mem_->semaphores_.server_queue =
-      sem_open(SEM_SERVER_QUEUE, O_CREAT, RW_ACCESS, 0);
-  if (shared_mem_->semaphores_.server_queue == SEM_FAILED) {
+  semaphores_.server_queue = sem_open(SEM_SERVER_QUEUE, O_CREAT, RW_ACCESS, 0);
+  if (semaphores_.server_queue == SEM_FAILED) {
     perror("Sem_t SERVER_QUEUE Open Failed");
     exit(EXIT_FAILURE);
   }
 
-  shared_mem_->semaphores_.server_lock =
+  semaphores_.server_lock =
       sem_open(SEM_SERVER_LOCK, O_CREAT | O_EXCL, RW_ACCESS, 1);
-  if (shared_mem_->semaphores_.server_lock == SEM_FAILED) {
+  if (semaphores_.server_lock == SEM_FAILED) {
     perror("Sem_t SERVER_LOCK Open Failed");
     exit(EXIT_FAILURE);
   }
@@ -191,9 +191,9 @@ int main(int argc, char **argv) {
   fclose(fp);
 
   // PUT TO SLEEP TILL WOKEN UP
-  if (sem_wait(shared_mem_->semaphores_.manager_lock) == -1) {
+  if (sem_wait(semaphores_.manager_lock) == -1) {
     perror("sem_t MANAGER_LOCK wait failed");
-    detach_shared_mem_and_close_all_sem(shared_mem_, shm_id);
+    detach_shared_mem_and_close_all_sem(shared_mem_, shm_id, semaphores_);
     exit(EXIT_FAILURE);
   }
 
@@ -260,7 +260,7 @@ int main(int argc, char **argv) {
   fclose(fp);
 
   // GRACEFULLY EXIT
-  detach_shared_mem_and_close_all_sem(shared_mem_, shm_id);
+  detach_shared_mem_and_close_all_sem(shared_mem_, shm_id, semaphores_);
   printf("See you tomorrow! \n");
 
   return EXIT_SUCCESS;

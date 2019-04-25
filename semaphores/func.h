@@ -73,7 +73,7 @@ typedef struct {
 
 typedef struct {
   menu_item menu[MENU_SIZE];
-  semaphores semaphores_;
+  // semaphores semaphores_;
   client clients[MAX_CLIENTS];
   counters counters_;
   int server_time;
@@ -81,7 +81,7 @@ typedef struct {
 
 extern shared_mem *attach_shared_mem(int);
 extern void detach_shared_mem(shared_mem *, int);
-extern void detach_shared_mem_and_close_all_sem(shared_mem *, int);
+extern void detach_shared_mem_and_close_all_sem(shared_mem *, int, semaphores);
 extern int randomize_n(int);
 extern int randomize_bt(int, int);
 

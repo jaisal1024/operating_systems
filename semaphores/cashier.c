@@ -11,13 +11,14 @@
 #include <sys/shm.h>
 #include <unistd.h>
 
-static void close_cashier(shared_mem *, int);
+static void close_cashier(shared_mem *, int, semaphores);
 static void dump_to_database(shared_mem *, int, int);
 
 int main(int argc, char **argv) {
   // INIT VARS
   int service_time, break_time, shmid, i, parameters = 0, clients_left = 0;
   shared_mem *shared_mem_;
+  semaphores semaphores_;
   srand(1);
 
   // READ ARGV INPUTS
@@ -58,83 +59,80 @@ int main(int argc, char **argv) {
   shared_mem_ = attach_shared_mem(shmid);
 
   // OPEN SEMAPHORES
-  shared_mem_->semaphores_.cashier_queue = sem_open(SEM_CASHIER_QUEUE, 0);
-  shared_mem_->semaphores_.cashier_lock = sem_open(SEM_CASHIER_LOCK, 0);
-  shared_mem_->semaphores_.client_cashier = sem_open(SEM_CLIENT_CASHIER, 0);
-  shared_mem_->semaphores_.client_queue = sem_open(SEM_CLIENT_QUEUE, 0);
+  semaphores_.cashier_queue = sem_open(SEM_CASHIER_QUEUE, 0);
+  semaphores_.cashier_lock = sem_open(SEM_CASHIER_LOCK, 0);
+  semaphores_.client_cashier = sem_open(SEM_CLIENT_CASHIER, 0);
+  semaphores_.client_queue = sem_open(SEM_CLIENT_QUEUE, 0);
 
-  VLOG(DEBUG, "INIT CC SEM: %d", shared_mem_->semaphores_.client_cashier);
+  VLOG(DEBUG, "INIT CC SEM: %d", semaphores_.client_cashier);
 
   // CHECK-IN : DECREMENT CASHIERS COUNTER IF NOT FULL
-  if (sem_wait(shared_mem_->semaphores_.cashier_lock) == -1) { // acquire lock
+  if (sem_wait(semaphores_.cashier_lock) == -1) { // acquire lock
     perror("sem_t CASHIER_LOCK wait failed");
-    close_cashier(shared_mem_, shmid);
+    close_cashier(shared_mem_, shmid, semaphores_);
   }
   if (shared_mem_->counters_.cashier > 0) {
     clients_left = shared_mem_->counters_.client;
     --shared_mem_->counters_.cashier;
     printf("Cashier %d is now serving clients\n", MAX_CLIENTS - clients_left);
   } else {
-    if (sem_post(shared_mem_->semaphores_.cashier_lock) == -1) { // release lock
+    if (sem_post(semaphores_.cashier_lock) == -1) { // release lock
       perror("sem_t CASHIER_LOCK post failed");
-      close_cashier(shared_mem_, shmid);
+      close_cashier(shared_mem_, shmid, semaphores_);
     }
     fprintf(stderr, "Max Cashiers Reached\n");
-    close_cashier(shared_mem_, shmid);
+    close_cashier(shared_mem_, shmid, semaphores_);
   }
-  if (sem_post(shared_mem_->semaphores_.cashier_lock) == -1) { // release lock
+  if (sem_post(semaphores_.cashier_lock) == -1) { // release lock
     perror("sem_t CASHIER_LOCK post failed");
-    close_cashier(shared_mem_, shmid);
+    close_cashier(shared_mem_, shmid, semaphores_);
   }
 
   while (clients_left > 0) {
-    if (sem_wait(shared_mem_->semaphores_.cashier_lock) == -1) { // acquire lock
+    if (sem_wait(semaphores_.cashier_lock) == -1) { // acquire lock
       perror("sem_t CASHIER_LOCK wait failed");
-      close_cashier(shared_mem_, shmid);
+      close_cashier(shared_mem_, shmid, semaphores_);
     }
-    if (sem_trywait(shared_mem_->semaphores_.client_queue) == -1) {
+    if (sem_trywait(semaphores_.client_queue) == -1) {
       VLOG(DEBUG, "%s", strerror(errno));
       if (errno == EAGAIN) {
         // TAKE A BREAK, no one in client queue
         printf("Cashier is breaking for... %d s\n", break_time);
-        if (sem_post(shared_mem_->semaphores_.cashier_lock) ==
-            -1) { // release lock
+        if (sem_post(semaphores_.cashier_lock) == -1) { // release lock
           perror("sem_t CASHIER_LOCK post failed");
-          close_cashier(shared_mem_, shmid);
+          close_cashier(shared_mem_, shmid, semaphores_);
         }
         sleep(break_time);
       } else {
-        if (sem_post(shared_mem_->semaphores_.cashier_lock) ==
-            -1) { // release lock
+        if (sem_post(semaphores_.cashier_lock) == -1) { // release lock
           perror("sem_t CASHIER_LOCK post failed");
-          close_cashier(shared_mem_, shmid);
+          close_cashier(shared_mem_, shmid, semaphores_);
         }
         perror("sem_t CLIENT_QUEUE trywait failed");
-        close_cashier(shared_mem_, shmid);
+        close_cashier(shared_mem_, shmid, semaphores_);
       }
     } else { // FOUND A WAITING CLIENT
       VLOG(DEBUG, "SERVING-CLIENT");
-      if (sem_post(shared_mem_->semaphores_.cashier_queue) == -1) {
+      if (sem_post(semaphores_.cashier_queue) == -1) {
         perror("sem_t CASHIER_QUEUE post failed");
-        close_cashier(shared_mem_, shmid);
+        close_cashier(shared_mem_, shmid, semaphores_);
       }
       // TAKING ORDER -- SERVICE TIME
       int this_service_time = randomize_n(service_time);
       int cur_client = MAX_CLIENTS - shared_mem_->counters_.client;
       VLOG(DEBUG, "CUR_CLIENT: %d", cur_client);
       shared_mem_->clients[cur_client].cashier_time = this_service_time;
+      --shared_mem_->counters_.client;
       // WAIT TILL CLIENT ADDS ORDER
       VLOG(DEBUG, "AWAITING ORDERING");
-      if (sem_wait(shared_mem_->semaphores_.client_cashier) == -1) {
+      if (sem_wait(semaphores_.client_cashier) == -1) {
         perror("sem_t CLIENT_CASHIER wait failed");
-        close_cashier(shared_mem_, shmid);
+        close_cashier(shared_mem_, shmid, semaphores_);
       }
       VLOG(DEBUG, "PAST ORDERING");
-      --shared_mem_->counters_.client;
-      if (sem_post(shared_mem_->semaphores_.cashier_lock) ==
-          -1) { // release lock
+      if (sem_post(semaphores_.cashier_lock) == -1) { // release lock
         perror("sem_t CASHIER_LOCK post failed");
-        close_cashier(shared_mem_, shmid);
+        close_cashier(shared_mem_, shmid, semaphores_);
       }
       printf("Cashier serving client %d (%d) in... %d s\n",
              shared_mem_->clients[cur_client].client_id, cur_client,
@@ -150,22 +148,22 @@ int main(int argc, char **argv) {
   }
 
   // DETACH SHARED MEM AND CLOSE SEMAPHORES
-  sem_close(shared_mem_->semaphores_.cashier_queue);
-  sem_close(shared_mem_->semaphores_.cashier_lock);
-  sem_close(shared_mem_->semaphores_.client_cashier);
-  sem_close(shared_mem_->semaphores_.client_queue);
+  sem_close(semaphores_.cashier_queue);
+  sem_close(semaphores_.cashier_lock);
+  sem_close(semaphores_.client_cashier);
+  sem_close(semaphores_.client_queue);
 
   detach_shared_mem(shared_mem_, shmid);
 
   return EXIT_SUCCESS;
 }
 
-void close_cashier(shared_mem *shared_mem_, int shmid) {
+void close_cashier(shared_mem *shared_mem_, int shmid, semaphores semaphores_) {
 
-  sem_close(shared_mem_->semaphores_.cashier_queue);
-  sem_close(shared_mem_->semaphores_.cashier_lock);
-  sem_close(shared_mem_->semaphores_.client_cashier);
-  sem_close(shared_mem_->semaphores_.client_queue);
+  sem_close(semaphores_.cashier_queue);
+  sem_close(semaphores_.cashier_lock);
+  sem_close(semaphores_.client_cashier);
+  sem_close(semaphores_.client_queue);
 
   detach_shared_mem(shared_mem_, shmid);
 

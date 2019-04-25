@@ -45,8 +45,6 @@ int main(int argc, char **argv) {
   semaphores_.server_lock = sem_open(SEM_SERVER_LOCK, 0);
   semaphores_.client_server = sem_open(SEM_CLIENT_SERVER, 0);
 
-  VLOG(DEBUG, "INIT SQ SEM: %d", semaphores_.server_queue);
-
   // CHECK-IN : DECREMENT SERVER COUNTER IF NOT FULL
   if (sem_wait(semaphores_.server_lock) == -1) { // acquire lock
     perror("sem_t SERVER_LOCK wait failed");
@@ -67,6 +65,7 @@ int main(int argc, char **argv) {
     perror("sem_t SERVER_LOCK post failed");
     close_server(shared_mem_, shmid, semaphores_);
   }
+  clients_left = MAX_CLIENTS;
 
   while (clients_left > 0) {
     // WAIT FOR A DELIVERY
@@ -75,17 +74,17 @@ int main(int argc, char **argv) {
       perror("sem_t SERVER_QUEUE wait failed");
       close_server(shared_mem_, shmid, semaphores_);
     }
+    int cur_client = MAX_CLIENTS - clients_left;
     int server_time = randomize_n(TIME_SERVER);
     shared_mem_->server_time = server_time;
-    printf("Server serving client in... %d s\n", server_time);
+    printf("Server serving client %d in... %d s\n", cur_client, server_time);
     sleep(server_time);
     // SIGNAL THE FOOD HAS BEEN SERVED
     if (sem_post(semaphores_.client_server) == -1) {
       perror("sem_t SERVER_LOCK post failed");
       close_server(shared_mem_, shmid, semaphores_);
     }
-    clients_left = shared_mem_->counters_.client;
-    VLOG(DEBUG, "Clients Left: %d", clients_left);
+    clients_left--;
   }
 
   // DETACH MEM AND CLOSE SEM

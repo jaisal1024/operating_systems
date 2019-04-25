@@ -1,12 +1,11 @@
-# a fully operational restaurant
+# a fully operational restaurant - THE WEST END DINER
 Jaisal Friedman
 Operating Systems Spring 2019
 NYU Abu Dhabi
 
 ## to-do
-1. Figure out how to declare a sem_open
-2. How to open a shared segment of memory from another process successfully - test in all cases
-3. Statistics & database strategy
+1. fix server close & client update issue
+2. check once more
 
 ## overview
 ### Coordinator
@@ -32,3 +31,7 @@ At least 10 menu items read in by file
 1. Critical section problem on cashier selecting the next free client in the queue. Cannot use a pthread lib mutex lock (only for pthread).
 2. binary semaphore (sleep using semaphore.h)
 3. writes to shared memory the order for statistics, get the info through shared memory from the client
+
+### Client
+
+### Server

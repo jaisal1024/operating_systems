@@ -64,8 +64,6 @@ int main(int argc, char **argv) {
   semaphores_.client_cashier = sem_open(SEM_CLIENT_CASHIER, 0);
   semaphores_.client_queue = sem_open(SEM_CLIENT_QUEUE, 0);
 
-  VLOG(DEBUG, "INIT CC SEM: %d", semaphores_.client_cashier);
-
   // CHECK-IN : DECREMENT CASHIERS COUNTER IF NOT FULL
   if (sem_wait(semaphores_.cashier_lock) == -1) { // acquire lock
     perror("sem_t CASHIER_LOCK wait failed");
@@ -122,13 +120,13 @@ int main(int argc, char **argv) {
       int cur_client = MAX_CLIENTS - shared_mem_->counters_.client;
       VLOG(DEBUG, "CUR_CLIENT: %d", cur_client);
       shared_mem_->clients[cur_client].cashier_time = this_service_time;
-      --shared_mem_->counters_.client;
       // WAIT TILL CLIENT ADDS ORDER
       VLOG(DEBUG, "AWAITING ORDERING");
       if (sem_wait(semaphores_.client_cashier) == -1) {
         perror("sem_t CLIENT_CASHIER wait failed");
         close_cashier(shared_mem_, shmid, semaphores_);
       }
+      --shared_mem_->counters_.client;
       VLOG(DEBUG, "PAST ORDERING");
       if (sem_post(semaphores_.cashier_lock) == -1) { // release lock
         perror("sem_t CASHIER_LOCK post failed");

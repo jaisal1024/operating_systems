@@ -73,7 +73,6 @@ typedef struct {
 
 typedef struct {
   menu_item menu[MENU_SIZE];
-  // semaphores semaphores_;
   client clients[MAX_CLIENTS];
   counters counters_;
   int server_time;

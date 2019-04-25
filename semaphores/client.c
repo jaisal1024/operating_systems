@@ -70,9 +70,6 @@ int main(int argc, char **argv) {
   semaphores_.server_queue = sem_open(SEM_SERVER_QUEUE, 0);
   semaphores_.client_server = sem_open(SEM_CLIENT_SERVER, 0);
 
-  VLOG(DEBUG, "INIT CC SEM: %d", semaphores_.client_cashier);
-  VLOG(DEBUG, "INIT SQ SEM: %d", semaphores_.server_queue);
-
   // CHECK-IN : DECREMENT CLIENT QUEUE COUNTER IF NOT FULL
   if (sem_wait(semaphores_.client_lock) == -1) { // acquire lock
     perror("sem_t CLIENT_LOCK wait failed");
@@ -182,7 +179,7 @@ int main(int argc, char **argv) {
 
   detach_shared_mem(shared_mem_, shmid);
 
-  printf("Goodbye client - %d (%d)\n", pid, cur_client);
+  printf("Goodbye client - %d (%d)\n", cur_client, pid);
 
   return EXIT_SUCCESS;
 }

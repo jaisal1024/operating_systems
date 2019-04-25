@@ -53,6 +53,9 @@ int main(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
 
+  // WELCOME
+  printf("Welcome to the West End Diner\n");
+
   // SHARED MEMORY CREATION
   shm_id = shmget(IPC_PRIVATE, sizeof(shared_mem), IPC_CREAT | RW_ACCESS);
   if (shm_id == -1) {

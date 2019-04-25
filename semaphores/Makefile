@@ -7,7 +7,7 @@ OBJS_cash = cashier.o common.o func.o
 OBJS_serv = server.o common.o func.o
 OBJS_client = client.o common.o func.o
 
-all:  manager cashier server client
+all: manager cashier server client del_sems
 
 .PHONY: manager
 manager: $(OBJS_m)

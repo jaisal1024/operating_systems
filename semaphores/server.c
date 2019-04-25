@@ -70,7 +70,6 @@ int main(int argc, char **argv) {
 
   while (clients_left > 0) {
     // WAIT FOR A DELIVERY
-    VLOG(DEBUG, "LP");
     if (sem_wait(semaphores_.server_queue) == -1) {
       perror("sem_t SERVER_QUEUE wait failed");
       close_server(shared_mem_, shmid, semaphores_);
@@ -89,12 +88,15 @@ int main(int argc, char **argv) {
     clients_left--;
   }
 
-  // INCREMENT SERVER COUNTER UPON EXIT
+  // INCREMENT SERVER COUNTER UPON EXIT IF NOT ALREADY 1
   if (sem_wait(semaphores_.server_lock) == -1) { // acquire lock
     perror("sem_t SERVER_LOCK wait failed");
     close_server(shared_mem_, shmid, semaphores_);
   }
-  shared_mem_->counters_.server++;
+  if (shared_mem_->counters_.server < 1)
+    shared_mem_->counters_.server = 1;
+  else
+    fprintf(stderr, "Server is already on the job\n");
   if (sem_post(semaphores_.server_lock) == -1) { // release lock
     perror("sem_t SERVER_LOCK post failed");
     close_server(shared_mem_, shmid, semaphores_);

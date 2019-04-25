@@ -128,6 +128,7 @@ int main(int argc, char **argv) {
         perror("sem_t CLIENT_CASHIER wait failed");
         close_cashier(shared_mem_, shmid, semaphores_);
       }
+      // DECREMENT CLIENT COUNTER (CLIENTS LEFT)
       --shared_mem_->counters_.client;
       VLOG(DEBUG, "PAST ORDERING");
       if (sem_post(semaphores_.cashier_lock) == -1) { // release lock
@@ -142,6 +143,21 @@ int main(int argc, char **argv) {
       dump_to_database(shared_mem_, cur_client, order);
     }
     clients_left = shared_mem_->counters_.client;
+  }
+
+  // INCREMENT CASHIERS COUNTER IF LESS THAN MAX_CASHIER
+  if (sem_wait(semaphores_.cashier_lock) == -1) { // acquire lock
+    perror("sem_t CASHIER_LOCK wait failed");
+    close_cashier(shared_mem_, shmid, semaphores_);
+  }
+  if (shared_mem_->counters_.cashier < shared_mem_->counters_.max_cashier) {
+    shared_mem_->counters_.cashier++;
+  } else {
+    fprintf(stderr, "Max Cashiers already reached\n");
+  }
+  if (sem_post(semaphores_.cashier_lock) == -1) { // release lock
+    perror("sem_t CASHIER_LOCK post failed");
+    close_cashier(shared_mem_, shmid, semaphores_);
   }
 
   // SAY Goodbye

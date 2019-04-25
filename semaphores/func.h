@@ -5,8 +5,8 @@
 
 #define MAX_INPUT_SIZE 200
 #define DESCR_SIZE 100
-#define MAX_CLIENTS 2
-#define MAX_QUEUE 1
+#define MAX_CLIENTS 5
+#define MAX_QUEUE 2
 #define TIME_SERVER 10
 #define SUCCESS 1
 #define FAILURE 0

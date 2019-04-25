@@ -31,7 +31,7 @@ int main(int argc, char **argv) {
       item_id--;
       parameters++;
       // ERROR CHECK
-      if (item_id < 0) {
+      if (item_id < 0 || item_id > MENU_SIZE - 1) {
         fprintf(stderr, "%s\n", "Incorrect Arguments Passed: Bad item ID");
         exit(EXIT_FAILURE);
       }
@@ -102,7 +102,6 @@ int main(int argc, char **argv) {
          ctime(&arr_time));
 
   // WAIT FOR CASHIER QUEUE
-  VLOG(DEBUG, "WAITING IN CASHIER QUEUE");
   if (sem_wait(semaphores_.cashier_queue) == -1) {
     perror("sem_t CASHIER_QUEUE wait failed");
     close_client(shared_mem_, shmid, semaphores_);

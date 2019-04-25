@@ -44,7 +44,7 @@ int main(int argc, char **argv) {
   shared_mem_->semaphores_.server_lock = sem_open(SEM_SERVER_LOCK, 0);
   shared_mem_->semaphores_.client_server = sem_open(SEM_CLIENT_SERVER, 0);
 
-  VLOG(DEBUG, "INIT SEMS: %d", shared_mem_->semaphores_.server_queue);
+  VLOG(DEBUG, "INIT SQ SEM: %d", shared_mem_->semaphores_.server_queue);
 
   // CHECK-IN : DECREMENT SERVER COUNTER IF NOT FULL
   if (sem_wait(shared_mem_->semaphores_.server_lock) == -1) { // acquire lock
@@ -69,12 +69,11 @@ int main(int argc, char **argv) {
 
   while (clients_left > 0) {
     // WAIT FOR A DELIVERY
-    VLOG(DEBUG, "HERE");
+    VLOG(DEBUG, "LP");
     if (sem_wait(shared_mem_->semaphores_.server_queue) == -1) {
       perror("sem_t SERVER_QUEUE wait failed");
       close_server(shared_mem_, shmid);
     }
-    VLOG(DEBUG, "HERE");
     int server_time = randomize_n(TIME_SERVER);
     shared_mem_->server_time = server_time;
     printf("Server serving client in... %d s\n", server_time);

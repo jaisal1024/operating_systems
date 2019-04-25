@@ -69,8 +69,8 @@ int main(int argc, char **argv) {
   shared_mem_->semaphores_.server_queue = sem_open(SEM_SERVER_QUEUE, 0);
   shared_mem_->semaphores_.client_server = sem_open(SEM_CLIENT_SERVER, 0);
 
-  VLOG(DEBUG, "INIT SEMS: %d", shared_mem_->semaphores_.client_cashier);
-  VLOG(DEBUG, "INIT SEMS: %d", shared_mem_->semaphores_.server_queue);
+  VLOG(DEBUG, "INIT CC SEM: %d", shared_mem_->semaphores_.client_cashier);
+  VLOG(DEBUG, "INIT SQ SEM: %d", shared_mem_->semaphores_.server_queue);
 
   // CHECK-IN : DECREMENT CLIENT QUEUE COUNTER IF NOT FULL
   if (sem_wait(shared_mem_->semaphores_.client_lock) == -1) { // acquire lock
@@ -128,7 +128,7 @@ int main(int argc, char **argv) {
     perror("sem_t CLIENT_CASHIER post failed");
     close_client(shared_mem_, shmid);
   }
-  VLOG(DEBUG, "DONE ORDERING");
+  VLOG(DEBUG, "DONE ORDERING, CLIENTS LEFT: %d", shared_mem_->counters_.client);
 
   // WAIT TO BE SERVED BY CASHIER
   int cashier_time = shared_mem_->clients[cur_client].cashier_time;

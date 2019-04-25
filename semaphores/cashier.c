@@ -63,7 +63,7 @@ int main(int argc, char **argv) {
   shared_mem_->semaphores_.client_cashier = sem_open(SEM_CLIENT_CASHIER, 0);
   shared_mem_->semaphores_.client_queue = sem_open(SEM_CLIENT_QUEUE, 0);
 
-  VLOG(DEBUG, "INIT SEMS: %d", shared_mem_->semaphores_.client_cashier);
+  VLOG(DEBUG, "INIT CC SEM: %d", shared_mem_->semaphores_.client_cashier);
 
   // CHECK-IN : DECREMENT CASHIERS COUNTER IF NOT FULL
   if (sem_wait(shared_mem_->semaphores_.cashier_lock) == -1) { // acquire lock
@@ -72,7 +72,7 @@ int main(int argc, char **argv) {
   }
   if (shared_mem_->counters_.cashier > 0) {
     clients_left = shared_mem_->counters_.client;
-    shared_mem_->counters_.cashier--;
+    --shared_mem_->counters_.cashier;
     printf("Cashier %d is now serving clients\n", MAX_CLIENTS - clients_left);
   } else {
     if (sem_post(shared_mem_->semaphores_.cashier_lock) == -1) { // release lock
@@ -130,7 +130,7 @@ int main(int argc, char **argv) {
         close_cashier(shared_mem_, shmid);
       }
       VLOG(DEBUG, "PAST ORDERING");
-      shared_mem_->counters_.client--;
+      --shared_mem_->counters_.client;
       if (sem_post(shared_mem_->semaphores_.cashier_lock) ==
           -1) { // release lock
         perror("sem_t CASHIER_LOCK post failed");

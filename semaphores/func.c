@@ -30,7 +30,6 @@ extern int randomize_bt(int max, int min) { return rand() % (max - min) + min; }
 extern shared_mem *attach_shared_mem(int shmid) {
   shared_mem *shared_mem_;
   shared_mem_ = (shared_mem *)shmat(shmid, NULL, 0);
-  // if (*(int *)shared_mem_ == -1) {
   if ((int)shared_mem_ == -1) {
     perror("Attach Shared Memory Failed Bad Memory Reference");
     exit(EXIT_FAILURE);

@@ -1,6 +1,6 @@
 CC=gcc
 CFLAGS = -Wall -g
-PTHD = -pthread
+PTHD = -lpthread
 
 OBJS_m = manager.o common.o func.o
 OBJS_cash = cashier.o common.o func.o
@@ -31,7 +31,7 @@ client: common.h func.h
 
 .PHONY: del_sems
 del_sems: del_sems.o
-	$(CC) $(CFLAGS) del_sems.c
+	$(CC) $(CFLAGS) -o del_sems del_sems.c $(PTHD)
 
 .PHONY: clean
 clean:
@@ -39,6 +39,7 @@ clean:
 	rm -f $(OBJS_cash) cashier
 	rm -f $(OBJS_serv) server
 	rm -f $(OBJS_client) client
+	rm -f del_sems.o
 	rm -f database.txt
 	touch database.txt
 	rm -f daily_stats

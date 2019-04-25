@@ -63,6 +63,8 @@ int main(int argc, char **argv) {
   shared_mem_->semaphores_.client_cashier = sem_open(SEM_CLIENT_CASHIER, 0);
   shared_mem_->semaphores_.client_queue = sem_open(SEM_CLIENT_QUEUE, 0);
 
+  VLOG(DEBUG, "INIT SEMS: %d", shared_mem_->semaphores_.client_cashier);
+
   // CHECK-IN : DECREMENT CASHIERS COUNTER IF NOT FULL
   if (sem_wait(shared_mem_->semaphores_.cashier_lock) == -1) { // acquire lock
     perror("sem_t CASHIER_LOCK wait failed");

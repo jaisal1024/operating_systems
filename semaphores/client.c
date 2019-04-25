@@ -69,6 +69,9 @@ int main(int argc, char **argv) {
   shared_mem_->semaphores_.server_queue = sem_open(SEM_SERVER_QUEUE, 0);
   shared_mem_->semaphores_.client_server = sem_open(SEM_CLIENT_SERVER, 0);
 
+  VLOG(DEBUG, "INIT SEMS: %d", shared_mem_->semaphores_.client_cashier);
+  VLOG(DEBUG, "INIT SEMS: %d", shared_mem_->semaphores_.server_queue);
+
   // CHECK-IN : DECREMENT CLIENT QUEUE COUNTER IF NOT FULL
   if (sem_wait(shared_mem_->semaphores_.client_lock) == -1) { // acquire lock
     perror("sem_t CLIENT_LOCK wait failed");
